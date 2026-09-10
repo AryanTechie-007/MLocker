@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String        @id @default(cuid())
+  name          String?
+  email         String        @unique
+  passwordHash  String?
+  image         String?
+  mediaItems    UserMedia[]
+  collections   Collection[]
+  createdAt     DateTime      @default(now())
+}
+
+model UserMedia {
+  id              String          @id @default(cuid())
+  userId          String
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Media identification
+  mediaType       String          // "movie" | "tv" | "anime" | "manga" | "game" | "novel"
+  externalId      String?
+  externalSource  String?         // "jikan" | "itunes" | "tvmaze" | "openlibrary" | "manual"
+  title           String
+  posterUrl       String?
+  year            Int?
+  genres          String?         // JSON string array
+  overview        String?
+
+  // Tracking
+  status          String          @default("plan_to_consume") // plan_to_consume, in_progress, completed, dropped, on_hold
+  rating          Float?          // 0-10
+  review          String?
+  isFavorite      Boolean         @default(false)
+
+  // Progress
+  totalEpisodes   Int?
+  watchedEpisodes Int?
+  totalChapters   Int?
+  readChapters    Int?
+  hoursPlayed     Float?
+
+  // Dates & Tags
+  startDate       DateTime?
+  endDate         DateTime?
+  tags            String?         // JSON string array
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  collectionItems CollectionItem[]
+
+  @@unique([userId, mediaType, externalId])
+  @@index([userId, mediaType])
+  @@index([userId, status])
+}
+
+model Collection {
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  coverUrl    String?
+  items       CollectionItem[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([userId])
+}
+
+model CollectionItem {
+  id            String     @id @default(cuid())
+  collectionId  String
+  collection    Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  userMediaId   String
+  userMedia     UserMedia  @relation(fields: [userMediaId], references: [id], onDelete: Cascade)
+  order         Int        @default(0)
+  createdAt     DateTime   @default(now())
+
+  @@unique([collectionId, userMediaId])
+}
