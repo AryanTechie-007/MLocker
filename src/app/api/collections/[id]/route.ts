@@ -1,16 +1,6 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-
-async function getOrCreateUserId(): Promise<string | null> {
-  const session = await auth();
-  if (session?.user?.id) return session.user.id;
-
-  const guest = await prisma.user.findUnique({
-    where: { email: "guest@medialocker.local" },
-  });
-  return guest?.id || null;
-}
+import { getOrCreateUserId } from "@/lib/get-user";
 
 export async function GET(
   req: Request,
@@ -60,6 +50,13 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const existing = await prisma.collection.findFirst({
+      where: { id, userId },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Collection not found" }, { status: 404 });
+    }
+
     const body = await req.json();
     const { name, description, coverUrl } = body;
 
@@ -93,6 +90,13 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const existing = await prisma.collection.findFirst({
+      where: { id, userId },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Collection not found" }, { status: 404 });
+    }
+
     await prisma.collection.delete({
       where: { id },
     });
@@ -117,6 +121,13 @@ export async function POST(
     const userId = await getOrCreateUserId();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const collection = await prisma.collection.findFirst({
+      where: { id: collectionId, userId },
+    });
+    if (!collection) {
+      return NextResponse.json({ error: "Collection not found" }, { status: 404 });
     }
 
     const { userMediaId, action } = await req.json();

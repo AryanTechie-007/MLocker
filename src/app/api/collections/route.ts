@@ -1,21 +1,6 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-
-async function getOrCreateUserId(): Promise<string | null> {
-  const session = await auth();
-  if (session?.user?.id) return session.user.id;
-
-  const guest = await prisma.user.upsert({
-    where: { email: "guest@medialocker.local" },
-    update: {},
-    create: {
-      name: "Guest Explorer",
-      email: "guest@medialocker.local",
-    },
-  });
-  return guest.id;
-}
+import { getOrCreateUserId } from "@/lib/get-user";
 
 export async function GET() {
   try {

@@ -1,5 +1,20 @@
 import { MediaSearchResult } from "./types";
 
+interface KitsuItem {
+  id: string | number;
+  attributes?: {
+    canonicalTitle?: string;
+    titles?: { en?: string; en_jp?: string };
+    posterImage?: { large?: string; medium?: string };
+    startDate?: string;
+    synopsis?: string;
+    description?: string;
+    averageRating?: string;
+    episodeCount?: number;
+    chapterCount?: number;
+  };
+}
+
 export async function searchAnime(query: string): Promise<MediaSearchResult[]> {
   try {
     const res = await fetch(
@@ -15,7 +30,7 @@ export async function searchAnime(query: string): Promise<MediaSearchResult[]> {
 
     if (!res.ok) return [];
     const json = await res.json();
-    const data: any[] = json.data || [];
+    const data: KitsuItem[] = json.data || [];
 
     return data.map((item) => {
       const attr = item.attributes || {};
@@ -59,7 +74,7 @@ export async function searchManga(query: string): Promise<MediaSearchResult[]> {
 
     if (!res.ok) return [];
     const json = await res.json();
-    const data: any[] = json.data || [];
+    const data: KitsuItem[] = json.data || [];
 
     return data.map((item) => {
       const attr = item.attributes || {};

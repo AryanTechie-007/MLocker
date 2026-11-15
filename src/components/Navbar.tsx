@@ -1,26 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
-  Film,
   Search,
   FolderHeart,
   BarChart3,
-  Tv,
-  Gamepad2,
-  BookOpen,
-  Sparkles,
   Layers,
   LogOut,
   User as UserIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { signOut } from "next-auth/react";
 
 export default function Navbar() {
   const pathname = usePathname();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const router = useRouter();
 
   const navItems = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -30,12 +25,13 @@ export default function Navbar() {
     { name: "Analytics & Stats", href: "/stats", icon: BarChart3 },
   ];
 
-  const quickCategories = [
-    { name: "Movies & TV", href: "/library?type=movie", icon: Film },
-    { name: "Anime & Manga", href: "/library?type=anime", icon: Sparkles },
-    { name: "Games", href: "/library?type=game", icon: Gamepad2 },
-    { name: "Novels & Books", href: "/library?type=novel", icon: BookOpen },
-  ];
+  const handleLogout = async () => {
+    try {
+      await signOut({ callbackUrl: "/login" });
+    } catch {
+      router.push("/login");
+    }
+  };
 
   return (
     <>
@@ -93,14 +89,21 @@ export default function Navbar() {
             >
               Media<span className="gradient-text">Locker</span>
             </h2>
-            <p style={{ fontSize: "0.7rem", color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            <p
+              style={{
+                fontSize: "0.7rem",
+                color: "var(--text-dim)",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+              }}
+            >
               Universal Tracker
             </p>
           </div>
         </Link>
 
         {/* Main Navigation */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "28px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "auto" }}>
           <span
             style={{
               fontSize: "0.75rem",
@@ -147,53 +150,6 @@ export default function Navbar() {
           })}
         </div>
 
-        {/* Quick Categories */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "auto" }}>
-          <span
-            style={{
-              fontSize: "0.75rem",
-              fontWeight: 600,
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              color: "var(--text-dim)",
-              padding: "0 12px 6px 12px",
-            }}
-          >
-            Vault Categories
-          </span>
-          {quickCategories.map((cat) => {
-            const Icon = cat.icon;
-            return (
-              <Link
-                key={cat.name}
-                href={cat.href}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  padding: "8px 14px",
-                  borderRadius: "var(--radius-sm)",
-                  fontSize: "0.86rem",
-                  color: "var(--text-muted)",
-                  textDecoration: "none",
-                  transition: "all 0.2s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = "var(--text-main)";
-                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = "var(--text-muted)";
-                  e.currentTarget.style.background = "transparent";
-                }}
-              >
-                <Icon size={16} color="var(--text-dim)" />
-                {cat.name}
-              </Link>
-            );
-          })}
-        </div>
-
         {/* User Card / Login Footer */}
         <div
           className="glass-panel"
@@ -205,41 +161,78 @@ export default function Navbar() {
             marginTop: "16px",
           }}
         >
-          <div
-            style={{
-              width: "36px",
-              height: "36px",
-              borderRadius: "50%",
-              background: "rgba(255, 255, 255, 0.08)",
-              border: "1px solid var(--border-subtle)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <UserIcon size={18} color="var(--accent-cyan)" />
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              My Locker
-            </p>
-            <p style={{ fontSize: "0.75rem", color: "var(--text-dim)" }}>
-              Offline Sync
-            </p>
-          </div>
           <Link
             href="/login"
-            title="Sign In / Accounts"
             style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              flex: 1,
+              minWidth: 0,
+              textDecoration: "none",
+            }}
+          >
+            <div
+              style={{
+                width: "36px",
+                height: "36px",
+                borderRadius: "50%",
+                background: "rgba(255, 255, 255, 0.08)",
+                border: "1px solid var(--border-subtle)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <UserIcon size={18} color="var(--accent-cyan)" />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p
+                style={{
+                  fontSize: "0.85rem",
+                  fontWeight: 600,
+                  color: "#fff",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                My Locker
+              </p>
+              <p style={{ fontSize: "0.72rem", color: "var(--text-dim)" }}>
+                Local Vault
+              </p>
+            </div>
+          </Link>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            title="Log Out"
+            style={{
+              background: "transparent",
+              border: "none",
               color: "var(--text-muted)",
+              cursor: "pointer",
+              padding: "6px",
+              borderRadius: "6px",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              padding: "4px",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = "var(--status-dropped)";
+              e.currentTarget.style.background = "rgba(248, 113, 113, 0.12)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = "var(--text-muted)";
+              e.currentTarget.style.background = "transparent";
             }}
           >
             <LogOut size={16} />
-          </Link>
+          </button>
         </div>
       </aside>
 

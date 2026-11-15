@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Layers,
@@ -8,7 +8,6 @@ import {
   Tv,
   Sparkles,
   Gamepad2,
-  BookOpen,
   LayoutGrid,
   List,
   Search,
@@ -16,21 +15,21 @@ import {
   Heart,
   Plus,
   ArrowUpDown,
-  Star,
   Edit2,
-  Loader2,
 } from "lucide-react";
 import MediaCard from "@/components/MediaCard";
 import StatusBadge from "@/components/StatusBadge";
 import EditMediaModal from "@/components/EditMediaModal";
 import AddMediaModal from "@/components/AddMediaModal";
+import { MediaCardSkeleton, TableRowSkeleton } from "@/components/Skeleton";
+import { UserMediaItem } from "@/lib/types";
 
 function LibraryContent() {
   const searchParams = useSearchParams();
   const initialType = searchParams.get("type") || "all";
   const initialStatus = searchParams.get("status") || "all";
 
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<UserMediaItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filters & Controls
@@ -42,12 +41,11 @@ function LibraryContent() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   // Modals
-  const [selectedEditItem, setSelectedEditItem] = useState<any>(null);
+  const [selectedEditItem, setSelectedEditItem] = useState<UserMediaItem | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async () => {
     try {
-      setLoading(true);
       const res = await fetch("/api/media");
       if (res.ok) {
         const data = await res.json();
@@ -58,10 +56,27 @@ function LibraryContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchItems();
+    let ignore = false;
+    fetch("/api/media")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!ignore) {
+          setItems(data.items || []);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!ignore) {
+          console.error(err);
+          setLoading(false);
+        }
+      });
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   // Filter & Sort Logic
@@ -97,9 +112,7 @@ function LibraryContent() {
     { type: "movie", label: "Movies", icon: Film },
     { type: "tv", label: "TV Shows", icon: Tv },
     { type: "anime", label: "Anime", icon: Sparkles },
-    { type: "manga", label: "Manga", icon: Sparkles },
     { type: "game", label: "Games", icon: Gamepad2 },
-    { type: "novel", label: "Novels", icon: BookOpen },
   ];
 
   const statusPills = [
@@ -120,15 +133,29 @@ function LibraryContent() {
           justifyContent: "space-between",
           alignItems: "center",
           flexWrap: "wrap",
-          gap: "16px",
-          marginBottom: "28px",
+          gap: "14px",
+          marginBottom: "24px",
+          width: "100%",
         }}
       >
         <div>
-          <h1 style={{ fontSize: "2.2rem", fontWeight: 800, color: "#fff", marginBottom: "4px" }}>
+          <h1
+            style={{
+              fontSize: "clamp(1.6rem, 1.4rem + 1.2vw, 2.2rem)",
+              fontWeight: 800,
+              color: "#fff",
+              marginBottom: "4px",
+              lineHeight: 1.15,
+            }}
+          >
             Personal <span className="gradient-text">Library</span>
           </h1>
-          <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>
+          <p
+            style={{
+              color: "var(--text-muted)",
+              fontSize: "clamp(0.85rem, 0.78rem + 0.25vw, 0.95rem)",
+            }}
+          >
             {sortedItems.length} {sortedItems.length === 1 ? "entry" : "entries"} filtered
           </p>
         </div>
@@ -136,7 +163,10 @@ function LibraryContent() {
         <button
           onClick={() => setIsAddModalOpen(true)}
           className="btn-primary"
-          style={{ padding: "10px 20px" }}
+          style={{
+            fontSize: "clamp(0.8rem, 0.72rem + 0.35vw, 0.95rem)",
+            padding: "clamp(8px, 0.6vw + 4px, 11px) clamp(14px, 1.2vw + 6px, 22px)",
+          }}
         >
           <Plus size={16} /> Track New Item
         </button>
@@ -148,6 +178,7 @@ function LibraryContent() {
           display: "flex",
           gap: "8px",
           overflowX: "auto",
+          maxWidth: "100%",
           paddingBottom: "8px",
           marginBottom: "20px",
           borderBottom: "1px solid var(--border-subtle)",
@@ -199,14 +230,15 @@ function LibraryContent() {
       <div
         className="glass-panel"
         style={{
-          padding: "16px 20px",
+          padding: "clamp(12px, 1.2vw, 18px)",
           borderRadius: "var(--radius-md)",
           display: "flex",
           flexWrap: "wrap",
-          gap: "16px",
+          gap: "12px",
           justifyContent: "space-between",
           alignItems: "center",
           marginBottom: "28px",
+          maxWidth: "100%",
         }}
       >
         {/* Search input in library */}
@@ -319,10 +351,29 @@ function LibraryContent() {
 
       {/* Media Items Presentation */}
       {loading ? (
-        <div style={{ textAlign: "center", padding: "80px 20px" }}>
-          <Loader2 size={40} className="spinner" color="var(--accent-cyan)" style={{ margin: "0 auto 16px" }} />
-          <p style={{ color: "var(--text-muted)" }}>Loading your vault...</p>
-        </div>
+        viewMode === "grid" ? (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+              gap: "20px",
+            }}
+          >
+            {Array.from({ length: 8 }).map((_, i) => (
+              <MediaCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : (
+          <div className="glass-panel" style={{ overflowX: "auto", borderRadius: "var(--radius-md)" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.9rem" }}>
+              <tbody>
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <TableRowSkeleton key={i} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
       ) : sortedItems.length === 0 ? (
         <div
           className="glass-panel"
@@ -441,6 +492,7 @@ function LibraryContent() {
         isOpen={Boolean(selectedEditItem)}
         onClose={() => setSelectedEditItem(null)}
         onUpdated={() => fetchItems()}
+        onDeleted={() => fetchItems()}
       />
 
       <AddMediaModal

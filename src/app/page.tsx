@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import {
   Film,
@@ -10,33 +10,33 @@ import {
   BookOpen,
   Plus,
   Play,
-  CheckCircle,
-  Clock,
-  Flame,
   ArrowRight,
-  TrendingUp,
-  Star,
+  BookMarked,
 } from "lucide-react";
 import MediaCard from "@/components/MediaCard";
 import AddMediaModal from "@/components/AddMediaModal";
 import EditMediaModal from "@/components/EditMediaModal";
+import { useToast } from "@/components/Toast";
+import { StatCardSkeleton, MediaCardSkeleton } from "@/components/Skeleton";
+import { UserMediaItem, StatsResponse } from "@/lib/types";
 
 export default function Dashboard() {
-  const [stats, setStats] = useState<any>(null);
-  const [inProgressItems, setInProgressItems] = useState<any[]>([]);
-  const [recentItems, setRecentItems] = useState<any[]>([]);
+  const { showToast } = useToast();
+  const [stats, setStats] = useState<StatsResponse | null>(null);
+  const [inProgressItems, setInProgressItems] = useState<UserMediaItem[]>([]);
+  const [recentItems, setRecentItems] = useState<UserMediaItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Modal controls
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [selectedEditItem, setSelectedEditItem] = useState<any>(null);
+  const [selectedEditItem, setSelectedEditItem] = useState<UserMediaItem | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
-      setLoading(true);
-      const [statsRes, mediaRes] = await Promise.all([
+      const [statsRes, inProgressRes, recentRes] = await Promise.all([
         fetch("/api/stats"),
-        fetch("/api/media"),
+        fetch("/api/media?status=in_progress"),
+        fetch("/api/media?limit=6&sortBy=updatedAt"),
       ]);
 
       if (statsRes.ok) {
@@ -44,37 +44,83 @@ export default function Dashboard() {
         setStats(statsData.stats);
       }
 
-      if (mediaRes.ok) {
-        const mediaData = await mediaRes.json();
-        const all: any[] = mediaData.items || [];
-        setInProgressItems(all.filter((i) => i.status === "in_progress"));
-        setRecentItems(all.slice(0, 6));
+      if (inProgressRes.ok) {
+        const inProgressData = await inProgressRes.json();
+        setInProgressItems(inProgressData.items || []);
+      }
+
+      if (recentRes.ok) {
+        const recentData = await recentRes.json();
+        setRecentItems(recentData.items || []);
       }
     } catch (err) {
       console.error("Dashboard fetch error:", err);
+      showToast("Failed to refresh dashboard data", "error");
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
 
   useEffect(() => {
-    fetchData();
+    let ignore = false;
+    Promise.all([
+      fetch("/api/stats"),
+      fetch("/api/media?status=in_progress"),
+      fetch("/api/media?limit=6&sortBy=updatedAt"),
+    ])
+      .then(async ([statsRes, inProgressRes, recentRes]) => {
+        if (ignore) return;
+        if (statsRes.ok) {
+          const statsData = await statsRes.json();
+          setStats(statsData.stats);
+        }
+        if (inProgressRes.ok) {
+          const inProgressData = await inProgressRes.json();
+          setInProgressItems(inProgressData.items || []);
+        }
+        if (recentRes.ok) {
+          const recentData = await recentRes.json();
+          setRecentItems(recentData.items || []);
+        }
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (!ignore) {
+          console.error("Dashboard fetch error:", err);
+          setLoading(false);
+        }
+      });
+    return () => {
+      ignore = true;
+    };
   }, []);
 
-  const handleIncrementProgress = async (item: any) => {
-    let update: any = {};
+  const handleIncrementProgress = async (item: UserMediaItem) => {
+    const update: Partial<UserMediaItem> = {};
+    let message = "";
+
     if (item.mediaType === "anime" || item.mediaType === "tv") {
-      update.watchedEpisodes = (item.watchedEpisodes || 0) + 1;
-      if (item.totalEpisodes && update.watchedEpisodes >= item.totalEpisodes) {
+      const nextEp = (item.watchedEpisodes || 0) + 1;
+      update.watchedEpisodes = nextEp;
+      if (item.totalEpisodes && nextEp >= item.totalEpisodes) {
         update.status = "completed";
+        message = `Completed ${item.title}! 🎉`;
+      } else {
+        message = `Ep ${nextEp}${item.totalEpisodes ? ` / ${item.totalEpisodes}` : ""} logged for ${item.title}`;
       }
     } else if (item.mediaType === "manga" || item.mediaType === "novel") {
-      update.readChapters = (item.readChapters || 0) + 1;
-      if (item.totalChapters && update.readChapters >= item.totalChapters) {
+      const nextCh = (item.readChapters || 0) + 1;
+      update.readChapters = nextCh;
+      if (item.totalChapters && nextCh >= item.totalChapters) {
         update.status = "completed";
+        message = `Completed ${item.title}! 🎉`;
+      } else {
+        message = `Ch ${nextCh}${item.totalChapters ? ` / ${item.totalChapters}` : ""} logged for ${item.title}`;
       }
     } else if (item.mediaType === "game") {
-      update.hoursPlayed = Math.round(((item.hoursPlayed || 0) + 1) * 10) / 10;
+      const nextHours = Math.round(((item.hoursPlayed || 0) + 1) * 10) / 10;
+      update.hoursPlayed = nextHours;
+      message = `Logged +1h for ${item.title} (${nextHours} hrs total)`;
     }
 
     try {
@@ -84,10 +130,14 @@ export default function Dashboard() {
         body: JSON.stringify(update),
       });
       if (res.ok) {
+        showToast(message, "success");
         fetchData();
+      } else {
+        showToast("Failed to update progress", "error");
       }
     } catch (err) {
       console.error(err);
+      showToast("Network error while updating progress", "error");
     }
   };
 
@@ -105,32 +155,33 @@ export default function Dashboard() {
         }}
       >
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-            <span className="badge badge-progress" style={{ fontSize: "0.8rem", padding: "4px 12px" }}>
-              <Flame size={14} /> Active Command Center
-            </span>
-          </div>
           <h1 style={{ fontSize: "2.4rem", fontWeight: 800, color: "#fff", lineHeight: 1.15 }}>
             Welcome to your <span className="gradient-text">Media Locker</span>
           </h1>
           <p style={{ color: "var(--text-muted)", fontSize: "1.02rem", marginTop: "6px" }}>
-            Unified tracking for movies, anime, television, games, manga, and novels.
+            Unified tracking for movies, TV shows, anime, and games.
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
           <button
             onClick={() => setIsAddModalOpen(true)}
             className="btn-primary"
-            style={{ padding: "12px 24px", fontSize: "0.95rem" }}
+            style={{
+              fontSize: "clamp(0.8rem, 0.72rem + 0.35vw, 0.95rem)",
+              padding: "clamp(8px, 0.6vw + 4px, 12px) clamp(14px, 1.2vw + 6px, 22px)",
+            }}
           >
             <Plus size={18} />
-            Add New Media
+            Track New Media
           </button>
           <Link
             href="/search"
             className="btn-secondary"
-            style={{ padding: "12px 20px", fontSize: "0.95rem" }}
+            style={{
+              fontSize: "clamp(0.8rem, 0.72rem + 0.35vw, 0.95rem)",
+              padding: "clamp(8px, 0.6vw + 4px, 12px) clamp(12px, 1vw + 5px, 20px)",
+            }}
           >
             Explore & Search
           </Link>
@@ -146,65 +197,77 @@ export default function Dashboard() {
           marginBottom: "40px",
         }}
       >
-        <div className="glass-panel" style={{ padding: "20px" }}>
-          <span style={{ fontSize: "0.82rem", color: "var(--text-dim)", fontWeight: 600, textTransform: "uppercase" }}>
-            Total Vault Items
-          </span>
-          <div style={{ fontSize: "2.2rem", fontWeight: 800, color: "#fff", marginTop: "8px", fontFamily: "var(--font-mono)" }}>
-            {stats?.totalTracked ?? 0}
-          </div>
-          <div style={{ fontSize: "0.78rem", color: "var(--accent-cyan)", marginTop: "6px" }}>
-            {stats?.favoriteCount ?? 0} marked as favorites
-          </div>
-        </div>
+        {loading && !stats ? (
+          <>
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+          </>
+        ) : (
+          <>
+            <div className="glass-panel" style={{ padding: "20px" }}>
+              <span style={{ fontSize: "0.82rem", color: "var(--text-dim)", fontWeight: 600, textTransform: "uppercase" }}>
+                Total Vault Items
+              </span>
+              <div style={{ fontSize: "2.2rem", fontWeight: 800, color: "#fff", marginTop: "8px", fontFamily: "var(--font-mono)" }}>
+                {stats?.totalTracked ?? 0}
+              </div>
+              <div style={{ fontSize: "0.78rem", color: "var(--accent-cyan)", marginTop: "6px" }}>
+                {stats?.favoriteCount ?? 0} marked as favorites
+              </div>
+            </div>
 
-        <div className="glass-panel" style={{ padding: "20px" }}>
-          <span style={{ fontSize: "0.82rem", color: "var(--text-dim)", fontWeight: 600, textTransform: "uppercase" }}>
-            Currently In Progress
-          </span>
-          <div style={{ fontSize: "2.2rem", fontWeight: 800, color: "var(--status-progress)", marginTop: "8px", fontFamily: "var(--font-mono)" }}>
-            {inProgressItems.length}
-          </div>
-          <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "6px" }}>
-            Active games, series & reads
-          </div>
-        </div>
+            <div className="glass-panel" style={{ padding: "20px" }}>
+              <span style={{ fontSize: "0.82rem", color: "var(--text-dim)", fontWeight: 600, textTransform: "uppercase" }}>
+                Currently In Progress
+              </span>
+              <div style={{ fontSize: "2.2rem", fontWeight: 800, color: "var(--status-progress)", marginTop: "8px", fontFamily: "var(--font-mono)" }}>
+                {inProgressItems.length}
+              </div>
+              <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "6px" }}>
+                Active games, series & reads
+              </div>
+            </div>
 
-        <div className="glass-panel" style={{ padding: "20px" }}>
-          <span style={{ fontSize: "0.82rem", color: "var(--text-dim)", fontWeight: 600, textTransform: "uppercase" }}>
-            Completed
-          </span>
-          <div style={{ fontSize: "2.2rem", fontWeight: 800, color: "var(--status-completed)", marginTop: "8px", fontFamily: "var(--font-mono)" }}>
-            {stats?.statusCounts?.completed ?? 0}
-          </div>
-          <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "6px" }}>
-            Conquered stories & titles
-          </div>
-        </div>
+            <div className="glass-panel" style={{ padding: "20px" }}>
+              <span style={{ fontSize: "0.82rem", color: "var(--text-dim)", fontWeight: 600, textTransform: "uppercase" }}>
+                Completed
+              </span>
+              <div style={{ fontSize: "2.2rem", fontWeight: 800, color: "var(--status-completed)", marginTop: "8px", fontFamily: "var(--font-mono)" }}>
+                {stats?.statusCounts?.completed ?? 0}
+              </div>
+              <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "6px" }}>
+                Conquered stories & titles
+              </div>
+            </div>
 
-        <div className="glass-panel" style={{ padding: "20px" }}>
-          <span style={{ fontSize: "0.82rem", color: "var(--text-dim)", fontWeight: 600, textTransform: "uppercase" }}>
-            Gaming Hours Logged
-          </span>
-          <div style={{ fontSize: "2.2rem", fontWeight: 800, color: "#facc15", marginTop: "8px", fontFamily: "var(--font-mono)" }}>
-            {stats?.totalHoursPlayed ?? 0}h
-          </div>
-          <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "6px" }}>
-            Total playtime tracked
-          </div>
-        </div>
+            <div className="glass-panel" style={{ padding: "20px" }}>
+              <span style={{ fontSize: "0.82rem", color: "var(--text-dim)", fontWeight: 600, textTransform: "uppercase" }}>
+                Gaming Hours Logged
+              </span>
+              <div style={{ fontSize: "2.2rem", fontWeight: 800, color: "#facc15", marginTop: "8px", fontFamily: "var(--font-mono)" }}>
+                {stats?.totalHoursPlayed ?? 0}h
+              </div>
+              <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "6px" }}>
+                Total playtime tracked
+              </div>
+            </div>
 
-        <div className="glass-panel" style={{ padding: "20px" }}>
-          <span style={{ fontSize: "0.82rem", color: "var(--text-dim)", fontWeight: 600, textTransform: "uppercase" }}>
-            Episodes Finished
-          </span>
-          <div style={{ fontSize: "2.2rem", fontWeight: 800, color: "var(--accent-purple)", marginTop: "8px", fontFamily: "var(--font-mono)" }}>
-            {stats?.totalEpisodesWatched ?? 0}
-          </div>
-          <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "6px" }}>
-            Anime & TV episodes
-          </div>
-        </div>
+            <div className="glass-panel" style={{ padding: "20px" }}>
+              <span style={{ fontSize: "0.82rem", color: "var(--text-dim)", fontWeight: 600, textTransform: "uppercase" }}>
+                Episodes Finished
+              </span>
+              <div style={{ fontSize: "2.2rem", fontWeight: 800, color: "var(--accent-purple)", marginTop: "8px", fontFamily: "var(--font-mono)" }}>
+                {stats?.totalEpisodesWatched ?? 0}
+              </div>
+              <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "6px" }}>
+                Anime & TV episodes
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Currently In Progress (Shelf) */}
@@ -234,7 +297,19 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {inProgressItems.length > 0 ? (
+        {loading ? (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+              gap: "20px",
+            }}
+          >
+            <MediaCardSkeleton />
+            <MediaCardSkeleton />
+            <MediaCardSkeleton />
+          </div>
+        ) : inProgressItems.length > 0 ? (
           <div
             style={{
               display: "grid",
@@ -310,7 +385,7 @@ export default function Dashboard() {
               Nothing in progress right now
             </h3>
             <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", maxWidth: "420px", marginBottom: "20px" }}>
-              Start tracking a movie, television series, anime, novel or game to see your active progress here!
+              Start tracking a movie, television series, anime, manga, novel or game to see your active progress here!
             </p>
             <button onClick={() => setIsAddModalOpen(true)} className="btn-primary">
               <Plus size={16} /> Track New Item
@@ -336,6 +411,7 @@ export default function Dashboard() {
             { type: "movie", name: "Movies", icon: Film, color: "#8b5cf6", count: stats?.mediaTypeCounts?.movie || 0 },
             { type: "tv", name: "TV Series", icon: Tv, color: "#38bdf8", count: stats?.mediaTypeCounts?.tv || 0 },
             { type: "anime", name: "Anime", icon: Sparkles, color: "#ec4899", count: stats?.mediaTypeCounts?.anime || 0 },
+            { type: "manga", name: "Manga", icon: BookMarked, color: "#d946ef", count: stats?.mediaTypeCounts?.manga || 0 },
             { type: "game", name: "Games", icon: Gamepad2, color: "#10b981", count: stats?.mediaTypeCounts?.game || 0 },
             { type: "novel", name: "Novels & Books", icon: BookOpen, color: "#f59e0b", count: stats?.mediaTypeCounts?.novel || 0 },
           ].map((cat) => {
@@ -419,7 +495,20 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {recentItems.length > 0 ? (
+        {loading ? (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))",
+              gap: "20px",
+            }}
+          >
+            <MediaCardSkeleton />
+            <MediaCardSkeleton />
+            <MediaCardSkeleton />
+            <MediaCardSkeleton />
+          </div>
+        ) : recentItems.length > 0 ? (
           <div
             style={{
               display: "grid",
@@ -461,6 +550,7 @@ export default function Dashboard() {
         isOpen={Boolean(selectedEditItem)}
         onClose={() => setSelectedEditItem(null)}
         onUpdated={() => fetchData()}
+        onDeleted={() => fetchData()}
       />
     </div>
   );

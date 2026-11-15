@@ -1,18 +1,7 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-
-async function getUserId(): Promise<string | null> {
-  const session = await auth();
-  if (session?.user?.id) {
-    return session.user.id;
-  }
-  // Check guest fallback
-  const guest = await prisma.user.findUnique({
-    where: { email: "guest@medialocker.local" },
-  });
-  return guest?.id || null;
-}
+import { getUserId } from "@/lib/get-user";
+import { Prisma } from "@prisma/client";
 
 export async function GET(
   req: Request,
@@ -71,7 +60,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Media item not found" }, { status: 404 });
     }
 
-    const updateData: any = {};
+    const updateData: Prisma.UserMediaUpdateInput = {};
 
     if (body.status !== undefined) updateData.status = body.status;
     if (body.rating !== undefined) {

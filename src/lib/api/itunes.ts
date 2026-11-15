@@ -11,27 +11,23 @@ interface ITunesItem {
   primaryGenreName?: string;
   longDescription?: string;
   shortDescription?: string;
+  trackViewUrl?: string;
 }
 
 export async function searchMovies(query: string): Promise<MediaSearchResult[]> {
   try {
     const res = await fetch(
-      `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&limit=30`,
+      `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&country=us&limit=25`,
       { next: { revalidate: 3600 } }
     );
     if (!res.ok) return [];
     const data = await res.json();
     const items: ITunesItem[] = data.results || [];
 
-    // Filter for movies or video content
-    const movies = items.filter(
-      (item) =>
-        item.kind === "feature-movie" ||
-        item.kind === "movie" ||
-        (!item.kind && item.trackName)
-    );
+    // Filter strictly for feature movies (never podcasts, audiobooks, or songs)
+    const movies = items.filter((item) => item.kind === "feature-movie");
 
-    return (movies.length > 0 ? movies : items.slice(0, 10)).map((item) => {
+    return movies.map((item) => {
       let year: number | null = null;
       if (item.releaseDate) {
         year = new Date(item.releaseDate).getFullYear() || null;
@@ -52,6 +48,13 @@ export async function searchMovies(query: string): Promise<MediaSearchResult[]> 
         genres: item.primaryGenreName ? [item.primaryGenreName] : ["Movie"],
         overview: item.longDescription || item.shortDescription || "",
         externalRating: null,
+        watchProviders: [
+          {
+            name: "Apple TV",
+            url: item.trackViewUrl || undefined,
+            type: "stream",
+          },
+        ],
       };
     });
   } catch (err) {

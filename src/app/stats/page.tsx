@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
   BarChart,
@@ -16,39 +16,78 @@ import {
 } from "recharts";
 import {
   BarChart3,
-  TrendingUp,
-  Award,
-  Clock,
   CheckCircle2,
   Film,
   Gamepad2,
-  BookOpen,
-  Sparkles,
   Star,
-  Flame,
-  ArrowRight,
+  Award,
 } from "lucide-react";
+import { Skeleton, StatCardSkeleton } from "@/components/Skeleton";
+import { StatsResponse, UserMediaItem } from "@/lib/types";
 
 const COLORS = ["#8b5cf6", "#06b6d4", "#ec4899", "#10b981", "#f59e0b", "#3b82f6"];
 
+const emptySubscribe = () => () => {};
+
 export default function StatsPage() {
-  const [stats, setStats] = useState<any>(null);
+  const isClient = useSyncExternalStore(emptySubscribe, () => true, () => false);
+  const [stats, setStats] = useState<StatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    let ignore = false;
     fetch("/api/stats")
       .then((res) => res.json())
-      .then((data) => setStats(data.stats))
-      .catch((err) => console.error(err))
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (!ignore) {
+          setStats(data.stats);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!ignore) {
+          console.error(err);
+          setLoading(false);
+        }
+      });
+    return () => {
+      ignore = true;
+    };
   }, []);
 
-  if (loading || !mounted) {
+  if (loading || !isClient || !stats) {
     return (
-      <div style={{ textAlign: "center", padding: "100px 20px", color: "var(--text-muted)" }}>
-        Compiling analytics from your media vaults...
+      <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
+        <div style={{ marginBottom: "36px" }}>
+          <Skeleton width="180px" height="24px" style={{ marginBottom: "12px" }} />
+          <Skeleton width="340px" height="40px" style={{ marginBottom: "12px" }} />
+          <Skeleton width="480px" height="18px" />
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: "18px",
+            marginBottom: "36px",
+          }}
+        >
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(450px, 1fr))", gap: "24px" }}>
+          <div className="glass-panel" style={{ padding: "28px", height: "380px" }}>
+            <Skeleton width="200px" height="24px" style={{ marginBottom: "20px" }} />
+            <Skeleton width="100%" height="280px" />
+          </div>
+          <div className="glass-panel" style={{ padding: "28px", height: "380px" }}>
+            <Skeleton width="200px" height="24px" style={{ marginBottom: "20px" }} />
+            <Skeleton width="100%" height="280px" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -215,7 +254,7 @@ export default function StatsPage() {
                     dataKey="count"
                     nameKey="name"
                   >
-                    {stats.mediaTypeChartData.map((entry: any, index: number) => (
+                    {stats.mediaTypeChartData.map((_, index: number) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
@@ -372,7 +411,7 @@ export default function StatsPage() {
               gap: "16px",
             }}
           >
-            {stats.topRated.map((item: any) => (
+            {stats.topRated.map((item: UserMediaItem) => (
               <Link
                 key={item.id}
                 href={`/media/${item.id}`}

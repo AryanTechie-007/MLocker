@@ -7,9 +7,27 @@ export type MediaStatus =
   | "on_hold"
   | "dropped";
 
+export type ExternalSource =
+  | "tmdb"
+  | "steam"
+  | "crunchyroll"
+  | "kitsu"
+  | "jikan"
+  | "itunes"
+  | "tvmaze"
+  | "openlibrary"
+  | "manual";
+
+export interface WatchProvider {
+  name: string;
+  logoUrl?: string;
+  url?: string;
+  type?: "stream" | "rent" | "buy";
+}
+
 export interface MediaSearchResult {
   externalId: string;
-  externalSource: "jikan" | "itunes" | "tvmaze" | "openlibrary" | "manual";
+  externalSource: ExternalSource;
   mediaType: MediaType;
   title: string;
   posterUrl: string | null;
@@ -19,4 +37,73 @@ export interface MediaSearchResult {
   externalRating: number | null;
   totalEpisodes?: number;
   totalChapters?: number;
+  watchProviders?: WatchProvider[];
+}
+
+export interface UserMediaItem {
+  id: string;
+  userId: string;
+  mediaType: MediaType;
+  externalId: string | null;
+  externalSource: ExternalSource | string | null;
+  title: string;
+  posterUrl: string | null;
+  year: number | null;
+  genres: string | null;
+  overview: string | null;
+  status: MediaStatus;
+  rating: number | null;
+  review: string | null;
+  isFavorite: boolean;
+  totalEpisodes: number | null;
+  watchedEpisodes: number | null;
+  totalChapters: number | null;
+  readChapters: number | null;
+  hoursPlayed: number | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  tags?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  collectionItems?: {
+    id: string;
+    collectionId: string;
+    collection?: Collection;
+  }[];
+}
+
+export interface CollectionItem {
+  id: string;
+  collectionId: string;
+  userMediaId: string;
+  order: number;
+  createdAt: string;
+  userMedia: UserMediaItem;
+}
+
+export interface Collection {
+  id: string;
+  userId: string;
+  name: string;
+  description: string | null;
+  coverUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items?: CollectionItem[];
+}
+
+export interface StatsResponse {
+  totalTracked: number;
+  favoriteCount: number;
+  averageRating: string;
+  totalHoursPlayed: number;
+  totalEpisodesWatched: number;
+  totalChaptersRead: number;
+  mediaTypeCounts: Record<MediaType, number>;
+  statusCounts: Record<MediaStatus, number>;
+  statusByType: Record<MediaType, Record<MediaStatus, number>>;
+  mediaTypeChartData: { type: string; name: string; count: number }[];
+  ratingChartData: { score: string; count: number }[];
+  topGenres: { name: string; count: number }[];
+  topRated: UserMediaItem[];
 }

@@ -1,21 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import {
   Search as SearchIcon,
   Film,
   Tv,
-  Sparkles,
   Gamepad2,
-  BookOpen,
+  Sparkles,
   Plus,
   Star,
   Layers,
   Loader2,
-  SlidersHorizontal,
 } from "lucide-react";
 import AddMediaModal from "@/components/AddMediaModal";
+import WatchProviderBadge from "@/components/WatchProviderBadge";
 import { MediaSearchResult, MediaType } from "@/lib/api/types";
 
 export default function SearchPage() {
@@ -29,27 +28,18 @@ export default function SearchPage() {
   const [selectedItem, setSelectedItem] = useState<MediaSearchResult | null>(null);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
 
-  const categories: Array<{ type: MediaType | "all"; label: string; icon: any }> = [
-    { type: "all", label: "All Media", icon: Layers },
+  const categories: Array<{ type: MediaType | "all"; label: string; icon: typeof Layers }> = [
+    { type: "all", label: "All Titles", icon: Layers },
     { type: "movie", label: "Movies", icon: Film },
     { type: "tv", label: "TV Shows", icon: Tv },
     { type: "anime", label: "Anime", icon: Sparkles },
-    { type: "manga", label: "Manga", icon: Sparkles },
-    { type: "novel", label: "Novels & Books", icon: BookOpen },
     { type: "game", label: "Games", icon: Gamepad2 },
   ];
 
-  const handleSearch = async (searchQuery = query, searchType = activeType) => {
+  const handleSearch = useCallback(async (searchQuery = query, searchType = activeType) => {
     if (!searchQuery.trim()) {
       setResults([]);
       setHasSearched(false);
-      return;
-    }
-
-    if (searchType === "game") {
-      // Games are manual
-      setResults([]);
-      setHasSearched(true);
       return;
     }
 
@@ -68,27 +58,30 @@ export default function SearchPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [query, activeType]);
 
   // Debounced auto-search on input
   useEffect(() => {
     const timer = setTimeout(() => {
       if (query.trim().length >= 2) {
         handleSearch(query, activeType);
+      } else if (query.trim().length === 0) {
+        setResults([]);
+        setHasSearched(false);
       }
     }, 450);
     return () => clearTimeout(timer);
-  }, [query, activeType]);
+  }, [query, activeType, handleSearch]);
 
   return (
     <div style={{ maxWidth: "1300px", margin: "0 auto" }}>
       {/* Header */}
       <div style={{ marginBottom: "32px" }}>
         <h1 style={{ fontSize: "2.2rem", fontWeight: 800, color: "#fff", marginBottom: "8px" }}>
-          Universal <span className="gradient-text">Search & Add</span>
+          Universal <span className="gradient-text">Search & Explore</span>
         </h1>
         <p style={{ color: "var(--text-muted)", fontSize: "0.98rem" }}>
-          Instant access to global movie, TV, anime, manga and book libraries without requiring API keys.
+          Search movies, TV shows, anime, and games with direct links to Crunchyroll, Netflix, Prime Video, Disney+, Steam, and Epic Games.
         </p>
       </div>
 
@@ -108,11 +101,11 @@ export default function SearchPage() {
           <SearchIcon
             size={20}
             color="var(--accent-purple)"
-            style={{ position: "absolute", left: "16px" }}
+            style={{ position: "absolute", left: "16px", pointerEvents: "none" }}
           />
           <input
             type="text"
-            placeholder="Search by title (e.g. Inception, Breaking Bad, Jujutsu Kaisen, Dune, Elden Ring...)"
+            placeholder="Search titles (e.g. Dune, Stranger Things, Demon Slayer, Elden Ring, Cyberpunk 2077...)"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
@@ -125,7 +118,15 @@ export default function SearchPage() {
               borderRadius: "var(--radius-sm)",
             }}
           />
-          <div style={{ position: "absolute", right: "12px", display: "flex", alignItems: "center", gap: "8px" }}>
+          <div
+            style={{
+              position: "absolute",
+              right: "12px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
             {loading && <Loader2 size={20} className="spinner" color="var(--accent-cyan)" />}
             <button
               onClick={() => handleSearch()}
@@ -163,250 +164,278 @@ export default function SearchPage() {
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
-                    gap: "6px",
-                    padding: "7px 14px",
-                    borderRadius: "9999px",
-                    fontSize: "0.82rem",
+                    gap: "8px",
+                    padding: "8px 14px",
+                    borderRadius: "var(--radius-sm)",
+                    fontSize: "0.85rem",
                     fontWeight: 600,
                     cursor: "pointer",
-                    transition: "all 0.2s",
-                    border: isSelected ? "1px solid var(--accent-cyan)" : "1px solid var(--border-subtle)",
+                    transition: "all 0.2s ease",
+                    border: isSelected
+                      ? "1px solid var(--accent-purple)"
+                      : "1px solid var(--border-subtle)",
                     background: isSelected
-                      ? "linear-gradient(90deg, rgba(139, 92, 246, 0.25) 0%, rgba(6, 182, 212, 0.25) 100%)"
+                      ? "linear-gradient(90deg, rgba(139, 92, 246, 0.25) 0%, rgba(6, 182, 212, 0.15) 100%)"
                       : "rgba(255, 255, 255, 0.04)",
                     color: isSelected ? "#fff" : "var(--text-muted)",
                   }}
                 >
-                  <Icon size={14} color={isSelected ? "var(--accent-cyan)" : "currentColor"} />
+                  <Icon size={15} color={isSelected ? "var(--accent-cyan)" : "currentColor"} />
                   {cat.label}
                 </button>
               );
             })}
           </div>
 
-          {/* Add Manually button */}
           <button
             onClick={() => setIsManualModalOpen(true)}
             className="btn-secondary"
-            style={{
-              fontSize: "0.82rem",
-              padding: "7px 14px",
-              borderColor: "rgba(139, 92, 246, 0.3)",
-              color: "var(--accent-purple)",
-            }}
+            style={{ fontSize: "0.85rem", padding: "8px 14px" }}
           >
-            <Plus size={14} /> Add Title Manually (Games, etc.)
+            <Plus size={15} /> Add Custom Entry
           </button>
         </div>
       </div>
 
-      {/* Special Banner for Games */}
-      {activeType === "game" && (
-        <div
-          className="glass-panel"
-          style={{
-            padding: "24px",
-            marginBottom: "28px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            background: "linear-gradient(90deg, rgba(16, 185, 129, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%)",
-            border: "1px solid rgba(16, 185, 129, 0.3)",
-          }}
-        >
-          <div>
-            <h4 style={{ color: "#34d399", fontWeight: 700, fontSize: "1.05rem", marginBottom: "4px" }}>
-              🎮 Tracking Video Games
-            </h4>
-            <p style={{ fontSize: "0.86rem", color: "var(--text-muted)" }}>
-              Video games can be added with custom hours played, poster art, platform, and personal reviews.
-            </p>
-          </div>
-          <button
-            onClick={() => setIsManualModalOpen(true)}
-            className="btn-primary"
-            style={{ background: "linear-gradient(135deg, #10b981 0%, #06b6d4 100%)" }}
-          >
-            <Plus size={16} /> Track a Game Now
-          </button>
-        </div>
-      )}
-
-      {/* Results Section */}
-      {loading ? (
-        <div style={{ textAlign: "center", padding: "80px 20px" }}>
-          <Loader2 size={40} className="spinner" color="var(--accent-cyan)" style={{ margin: "0 auto 16px" }} />
-          <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>
-            Scanning streaming, literary, and animation registries...
-          </p>
-        </div>
-      ) : results.length > 0 ? (
+      {/* Results or Empty States */}
+      {results.length > 0 ? (
         <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-            <span style={{ fontSize: "0.9rem", color: "var(--text-muted)" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "16px",
+            }}
+          >
+            <p style={{ fontSize: "0.9rem", color: "var(--text-muted)" }}>
               Found <strong style={{ color: "#fff" }}>{results.length}</strong> results for &ldquo;{query}&rdquo;
-            </span>
+            </p>
           </div>
 
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: "20px",
+              gridTemplateColumns: "repeat(auto-fill, minmax(285px, 1fr))",
+              gap: "22px",
             }}
           >
-            {results.map((item, idx) => (
-              <div
-                key={`${item.externalSource}-${item.externalId}-${idx}`}
-                className="glass-panel"
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  borderRadius: "var(--radius-md)",
-                  overflow: "hidden",
-                  transition: "transform 0.2s ease, border-color 0.2s ease",
-                }}
-              >
-                {/* Poster & Badges */}
-                <div style={{ display: "flex", gap: "14px", padding: "14px", flex: 1 }}>
-                  <div
-                    style={{
-                      position: "relative",
-                      width: "80px",
-                      height: "115px",
-                      flexShrink: 0,
-                      borderRadius: "6px",
-                      overflow: "hidden",
-                      backgroundColor: "#151828",
-                    }}
-                  >
-                    {item.posterUrl ? (
-                      <Image
-                        src={item.posterUrl}
-                        alt={item.title}
-                        fill
-                        sizes="80px"
-                        style={{ objectFit: "cover" }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          background: "rgba(255, 255, 255, 0.05)",
-                          color: "var(--text-dim)",
-                        }}
-                      >
-                        <Film size={24} />
-                      </div>
-                    )}
-                  </div>
+            {results.map((item, idx) => {
+              const badgeStyle = (() => {
+                switch (item.mediaType) {
+                  case "movie":
+                    return { color: "#818cf8", bg: "rgba(99, 102, 241, 0.15)", border: "rgba(99, 102, 241, 0.3)" };
+                  case "tv":
+                    return { color: "#38bdf8", bg: "rgba(56, 189, 248, 0.15)", border: "rgba(56, 189, 248, 0.3)" };
+                  case "anime":
+                    return { color: "#c084fc", bg: "rgba(192, 132, 252, 0.15)", border: "rgba(192, 132, 252, 0.3)" };
+                  case "manga":
+                    return { color: "#f472b6", bg: "rgba(244, 114, 182, 0.15)", border: "rgba(244, 114, 182, 0.3)" };
+                  case "novel":
+                    return { color: "#34d399", bg: "rgba(52, 211, 153, 0.15)", border: "rgba(52, 211, 153, 0.3)" };
+                  case "game":
+                    return { color: "#fbbf24", bg: "rgba(251, 191, 36, 0.15)", border: "rgba(251, 191, 36, 0.3)" };
+                  default:
+                    return { color: "#06b6d4", bg: "rgba(6, 182, 212, 0.15)", border: "rgba(6, 182, 212, 0.3)" };
+                }
+              })();
 
-                  <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
-                      <span
-                        style={{
-                          fontSize: "0.68rem",
-                          fontWeight: 700,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.04em",
-                          color: "var(--accent-cyan)",
-                          background: "rgba(6, 182, 212, 0.12)",
-                          padding: "2px 6px",
-                          borderRadius: "4px",
-                        }}
-                      >
-                        {item.mediaType}
-                      </span>
-                      {item.year && (
-                        <span style={{ fontSize: "0.76rem", color: "var(--text-dim)" }}>
-                          {item.year}
-                        </span>
+              return (
+                <div
+                  key={`${item.externalSource}-${item.externalId}-${idx}`}
+                  className="search-card"
+                >
+                  {/* Poster & Badges Header */}
+                  <div style={{ display: "flex", gap: "14px", padding: "16px 16px 12px 16px" }}>
+                    <div
+                      style={{
+                        position: "relative",
+                        width: "84px",
+                        height: "120px",
+                        flexShrink: 0,
+                        borderRadius: "8px",
+                        overflow: "hidden",
+                        backgroundColor: "#151828",
+                        border: "1px solid rgba(255, 255, 255, 0.08)",
+                        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)",
+                      }}
+                    >
+                      {item.posterUrl ? (
+                        <Image
+                          src={item.posterUrl}
+                          alt={item.title}
+                          fill
+                          sizes="84px"
+                          className="search-card-poster"
+                          style={{ objectFit: "cover" }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            background: "rgba(255, 255, 255, 0.04)",
+                            color: "var(--text-dim)",
+                          }}
+                        >
+                          <Film size={26} />
+                        </div>
                       )}
                     </div>
 
-                    <h3
+                    {/* Metadata column with guaranteed uniform vertical spacing */}
+                    <div
                       style={{
-                        fontSize: "0.98rem",
-                        fontWeight: 700,
-                        color: "#fff",
-                        lineHeight: 1.25,
-                        display: "-webkit-box",
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: "vertical",
-                        overflow: "hidden",
+                        flex: 1,
+                        minWidth: 0,
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "flex-start",
                       }}
                     >
-                      {item.title}
-                    </h3>
-
-                    {item.externalRating && (
+                      {/* Category & Year Row */}
                       <div
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: "4px",
-                          fontSize: "0.78rem",
-                          color: "#facc15",
-                          marginTop: "6px",
+                          justifyContent: "space-between",
+                          marginBottom: "6px",
                         }}
                       >
-                        <Star size={12} fill="currentColor" />
-                        <span>{item.externalRating} / 10</span>
+                        <span
+                          style={{
+                            fontSize: "0.68rem",
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.06em",
+                            color: badgeStyle.color,
+                            background: badgeStyle.bg,
+                            border: `1px solid ${badgeStyle.border}`,
+                            padding: "2px 7px",
+                            borderRadius: "4px",
+                          }}
+                        >
+                          {item.mediaType}
+                        </span>
+                        {item.year && (
+                          <span
+                            style={{
+                              fontSize: "0.76rem",
+                              color: "var(--text-dim)",
+                              fontFamily: "var(--font-mono)",
+                            }}
+                          >
+                            {item.year}
+                          </span>
+                        )}
                       </div>
-                    )}
 
-                    {item.genres && item.genres.length > 0 && (
+                      {/* Title: 2 lines max height reserved */}
+                      <h3
+                        title={item.title}
+                        style={{
+                          fontSize: "0.98rem",
+                          fontWeight: 700,
+                          color: "#ffffff",
+                          lineHeight: 1.3,
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                          minHeight: "2.6em",
+                        }}
+                      >
+                        {item.title}
+                      </h3>
+
+                      {/* Rating row: Consistent height regardless of presence */}
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "5px",
+                          fontSize: "0.78rem",
+                          minHeight: "20px",
+                          marginTop: "2px",
+                        }}
+                      >
+                        {item.externalRating ? (
+                          <>
+                            <Star size={13} fill="#fbbf24" color="#fbbf24" />
+                            <span style={{ fontWeight: 700, color: "#fff" }}>
+                              {item.externalRating.toFixed(1)}
+                            </span>
+                            <span style={{ color: "var(--text-dim)", fontSize: "0.72rem" }}>
+                              / 10
+                            </span>
+                          </>
+                        ) : (
+                          <span style={{ color: "var(--text-dim)", fontSize: "0.72rem" }}>
+                            • Rating unavailable
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Streaming / Platform Badge & Quick Search */}
+                      <WatchProviderBadge
+                        providers={item.watchProviders || []}
+                        compact
+                        title={item.title}
+                        mediaType={item.mediaType}
+                        showQuickSearch={true}
+                      />
+
+                      {/* Genres */}
                       <p
                         style={{
                           fontSize: "0.74rem",
                           color: "var(--text-dim)",
                           marginTop: "auto",
-                          paddingTop: "6px",
+                          paddingTop: "4px",
                           whiteSpace: "nowrap",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                         }}
                       >
-                        {item.genres.slice(0, 2).join(", ")}
+                        {item.genres && item.genres.length > 0
+                          ? item.genres.slice(0, 2).join(", ")
+                          : "General"}
                       </p>
-                    )}
+                    </div>
                   </div>
-                </div>
 
-                {/* Overview preview */}
-                {item.overview && (
+                  {/* Overview synopsis: Clamped to 2 lines */}
                   <p
                     style={{
                       fontSize: "0.78rem",
                       color: "var(--text-muted)",
-                      padding: "0 14px 12px 14px",
+                      padding: "0 16px 14px 16px",
                       display: "-webkit-box",
                       WebkitLineClamp: 2,
                       WebkitBoxOrient: "vertical",
                       overflow: "hidden",
-                      lineHeight: 1.4,
+                      lineHeight: 1.45,
+                      minHeight: "2.9em",
                     }}
                   >
-                    {item.overview}
+                    {item.overview || "No overview available for this release."}
                   </p>
-                )}
 
-                {/* Add to Locker CTA */}
-                <div style={{ padding: "0 14px 14px 14px", marginTop: "auto" }}>
-                  <button
-                    onClick={() => setSelectedItem(item)}
-                    className="btn-primary"
-                    style={{ width: "100%", justifyContent: "center", padding: "8px", fontSize: "0.85rem" }}
-                  >
-                    <Plus size={15} /> Add to My Locker
-                  </button>
+                  {/* Clean CTA Button */}
+                  <div style={{ padding: "0 16px 16px 16px", marginTop: "auto" }}>
+                    <button
+                      onClick={() => setSelectedItem(item)}
+                      className="search-card-btn"
+                    >
+                      <Plus size={14} /> Add to My Locker
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ) : hasSearched ? (
@@ -439,7 +468,7 @@ export default function SearchPage() {
             No results found for &ldquo;{query}&rdquo;
           </h3>
           <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", maxWidth: "420px", marginBottom: "20px" }}>
-            Try checking spelling or switch categories. If it&apos;s a game, indie book, or custom title, you can add it manually!
+            Try checking the spelling or switch categories. If it&apos;s a game, indie book, or custom title, you can add it manually!
           </p>
           <button
             onClick={() => setIsManualModalOpen(true)}
@@ -449,7 +478,7 @@ export default function SearchPage() {
           </button>
         </div>
       ) : (
-        /* Empty landing state for Search */
+        /* Clean landing state for Search */
         <div
           className="glass-panel"
           style={{

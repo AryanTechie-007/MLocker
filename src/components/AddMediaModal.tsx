@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { X, Star, Plus, Check } from "lucide-react";
+import { X, Plus } from "lucide-react";
 import Image from "next/image";
+import { useToast } from "@/components/Toast";
+import WatchProviderBadge from "@/components/WatchProviderBadge";
+import { MediaSearchResult } from "@/lib/types";
 
 interface AddMediaModalProps {
   isOpen: boolean;
   onClose: () => void;
-  mediaItem?: any; // prefilled search result, or undefined for manual entry
+  mediaItem?: Partial<MediaSearchResult>; // prefilled search result, or undefined for manual entry
   onSuccess?: () => void;
   defaultType?: string;
 }
@@ -17,8 +20,9 @@ export default function AddMediaModal({
   onClose,
   mediaItem,
   onSuccess,
-  defaultType = "game",
+  defaultType = "movie",
 }: AddMediaModalProps) {
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
 
   // Form State
@@ -26,8 +30,9 @@ export default function AddMediaModal({
   const [title, setTitle] = useState(mediaItem?.title || "");
   const [posterUrl, setPosterUrl] = useState(mediaItem?.posterUrl || "");
   const [year, setYear] = useState(mediaItem?.year ? String(mediaItem.year) : "");
+  const [manualGenres, setManualGenres] = useState("");
   const [status, setStatus] = useState("plan_to_consume");
-  const [rating, setRating] = useState<number | "">(mediaItem?.externalRating ? Math.round(mediaItem.externalRating) : "");
+  const [rating, setRating] = useState<number | "">("");
   const [review, setReview] = useState("");
   const [watchedEpisodes, setWatchedEpisodes] = useState("");
   const [totalEpisodes, setTotalEpisodes] = useState(mediaItem?.totalEpisodes ? String(mediaItem.totalEpisodes) : "");
@@ -43,6 +48,13 @@ export default function AddMediaModal({
 
     setLoading(true);
     try {
+      const parsedGenres = mediaItem?.genres?.length
+        ? mediaItem.genres
+        : manualGenres
+            .split(",")
+            .map((g) => g.trim())
+            .filter(Boolean);
+
       const payload = {
         mediaType,
         externalId: mediaItem?.externalId || null,
@@ -50,11 +62,12 @@ export default function AddMediaModal({
         title: title.trim(),
         posterUrl: posterUrl.trim() || null,
         year: year ? parseInt(year, 10) : null,
-        genres: mediaItem?.genres || [],
+        genres: parsedGenres,
         overview: mediaItem?.overview || "",
         status,
         rating: rating !== "" ? Number(rating) : null,
         review: review.trim() || null,
+        tags: mediaItem?.watchProviders?.length ? mediaItem.watchProviders.map((p) => p.name) : null,
         watchedEpisodes: watchedEpisodes ? parseInt(watchedEpisodes, 10) : 0,
         totalEpisodes: totalEpisodes ? parseInt(totalEpisodes, 10) : null,
         readChapters: readChapters ? parseInt(readChapters, 10) : 0,
@@ -69,11 +82,16 @@ export default function AddMediaModal({
       });
 
       if (res.ok) {
+        showToast(`Added "${title.trim()}" to your locker!`, "success");
         if (onSuccess) onSuccess();
         onClose();
+      } else {
+        const data = await res.json().catch(() => null);
+        showToast(data?.error || "Failed to add media item", "error");
       }
     } catch (err) {
       console.error(err);
+      showToast("Network error while adding media", "error");
     } finally {
       setLoading(false);
     }
@@ -146,7 +164,7 @@ export default function AddMediaModal({
           >
             {mediaItem.posterUrl && (
               <div style={{ position: "relative", width: "60px", height: "85px", flexShrink: 0, borderRadius: "6px", overflow: "hidden" }}>
-                <Image src={mediaItem.posterUrl} alt={mediaItem.title} fill style={{ objectFit: "cover" }} />
+                <Image src={mediaItem.posterUrl} alt={mediaItem.title || "Poster"} fill style={{ objectFit: "cover" }} />
               </div>
             )}
             <div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
@@ -158,6 +176,15 @@ export default function AddMediaModal({
                 <span style={{ fontSize: "0.78rem", color: "#facc15", marginTop: "4px" }}>
                   ★ {mediaItem.externalRating} / 10 (Global Score)
                 </span>
+              )}
+              {mediaItem.watchProviders && mediaItem.watchProviders.length > 0 && (
+                <div style={{ marginTop: "4px" }}>
+                  <WatchProviderBadge
+                    providers={mediaItem.watchProviders}
+                    compact
+                    title={mediaItem.title}
+                  />
+                </div>
               )}
             </div>
           </div>
@@ -176,12 +203,10 @@ export default function AddMediaModal({
                   onChange={(e) => setMediaType(e.target.value)}
                   className="select-control"
                 >
-                  <option value="game">Game (PC, Console, Mobile)</option>
                   <option value="movie">Movie</option>
                   <option value="tv">TV Series</option>
-                  <option value="anime">Anime</option>
-                  <option value="manga">Manga</option>
-                  <option value="novel">Novel / Book</option>
+                  <option value="anime">Anime (Crunchyroll, TV, Movie)</option>
+                  <option value="game">Video Game (PC, Steam, Epic)</option>
                 </select>
               </div>
 
@@ -224,6 +249,19 @@ export default function AddMediaModal({
                     className="input-control"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: "6px" }}>
+                  Genres / Tags (Comma-separated)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. RPG, Action, Open World"
+                  value={manualGenres}
+                  onChange={(e) => setManualGenres(e.target.value)}
+                  className="input-control"
+                />
               </div>
             </>
           )}

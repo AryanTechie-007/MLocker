@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { Layers, Lock, Mail, User as UserIcon, ArrowRight, ShieldCheck } from "lucide-react";
+import { Layers, Lock, Mail, User as UserIcon, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 export default function LoginPage() {

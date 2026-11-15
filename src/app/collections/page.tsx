@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { FolderHeart, Plus, Trash2, Layers, Film, X } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { FolderHeart, Plus, Trash2, X, Loader2 } from "lucide-react";
 import MediaCard from "@/components/MediaCard";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import { useToast } from "@/components/Toast";
+import { Skeleton, MediaCardSkeleton } from "@/components/Skeleton";
+import { Collection } from "@/lib/types";
 
 export default function CollectionsPage() {
-  const [collections, setCollections] = useState<any[]>([]);
-  const [selectedCollection, setSelectedCollection] = useState<any>(null);
+  const { showToast } = useToast();
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
   const [loading, setLoading] = useState(true);
 
   // New Collection Modal
@@ -17,26 +20,63 @@ export default function CollectionsPage() {
   const [newColDesc, setNewColDesc] = useState("");
   const [creating, setCreating] = useState(false);
 
-  const fetchCollections = async () => {
+  // Delete Confirm Dialog
+  const [collectionToDelete, setCollectionToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const fetchCollections = useCallback(async () => {
     try {
-      setLoading(true);
       const res = await fetch("/api/collections");
       if (res.ok) {
         const data = await res.json();
-        setCollections(data.collections || []);
-        if (data.collections?.length > 0 && !selectedCollection) {
-          setSelectedCollection(data.collections[0]);
+        const colls: Collection[] = data.collections || [];
+        setCollections(colls);
+        if (colls.length > 0) {
+          // Keep current selection if still exists, otherwise pick first
+          setSelectedCollection((prev) => {
+            if (prev) {
+              const matched = colls.find((c) => c.id === prev.id);
+              if (matched) return matched;
+            }
+            return colls[0];
+          });
+        } else {
+          setSelectedCollection(null);
         }
       }
     } catch (err) {
       console.error(err);
+      showToast("Failed to load collections", "error");
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
 
   useEffect(() => {
-    fetchCollections();
+    let ignore = false;
+    fetch("/api/collections")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!ignore) {
+          const colls: Collection[] = data.collections || [];
+          setCollections(colls);
+          if (colls.length > 0) {
+            setSelectedCollection(colls[0]);
+          } else {
+            setSelectedCollection(null);
+          }
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!ignore) {
+          console.error(err);
+          setLoading(false);
+        }
+      });
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -53,26 +93,39 @@ export default function CollectionsPage() {
         }),
       });
       if (res.ok) {
+        showToast(`Created collection "${newColName.trim()}"!`, "success");
         setNewColName("");
         setNewColDesc("");
         setIsCreateOpen(false);
         fetchCollections();
+      } else {
+        showToast("Failed to create collection", "error");
       }
     } catch (err) {
       console.error(err);
+      showToast("Network error while creating collection", "error");
     } finally {
       setCreating(false);
     }
   };
 
-  const handleDeleteCollection = async (id: string, name: string) => {
-    if (!confirm(`Delete collection "${name}"?`)) return;
+  const executeDeleteCollection = async () => {
+    if (!collectionToDelete) return;
+    setDeleting(true);
     try {
-      await fetch(`/api/collections/${id}`, { method: "DELETE" });
-      setSelectedCollection(null);
-      fetchCollections();
+      const res = await fetch(`/api/collections/${collectionToDelete.id}`, { method: "DELETE" });
+      if (res.ok) {
+        showToast(`Deleted collection "${collectionToDelete.name}"`, "info");
+        setCollectionToDelete(null);
+        fetchCollections();
+      } else {
+        showToast("Failed to delete collection", "error");
+      }
     } catch (err) {
       console.error(err);
+      showToast("Network error while deleting collection", "error");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -107,9 +160,22 @@ export default function CollectionsPage() {
         </button>
       </div>
 
-      {loading ? (
-        <div style={{ textAlign: "center", padding: "80px 20px", color: "var(--text-muted)" }}>
-          Loading your collections...
+      {loading && collections.length === 0 ? (
+        <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: "28px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            <Skeleton height="70px" />
+            <Skeleton height="70px" />
+            <Skeleton height="70px" />
+          </div>
+          <div className="glass-panel" style={{ padding: "32px", minHeight: "360px" }}>
+            <Skeleton height="36px" width="40%" style={{ marginBottom: "16px" }} />
+            <Skeleton height="18px" width="60%" style={{ marginBottom: "32px" }} />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "20px" }}>
+              <MediaCardSkeleton />
+              <MediaCardSkeleton />
+              <MediaCardSkeleton />
+            </div>
+          </div>
         </div>
       ) : collections.length === 0 ? (
         <div
@@ -184,7 +250,7 @@ export default function CollectionsPage() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDeleteCollection(col.id, col.name);
+                      setCollectionToDelete({ id: col.id, name: col.name });
                     }}
                     className="btn-icon"
                     style={{ width: "30px", height: "30px", border: "none", color: "var(--text-dim)" }}
@@ -211,7 +277,7 @@ export default function CollectionsPage() {
                 )}
               </div>
 
-              {selectedCollection.items?.length > 0 ? (
+              {selectedCollection.items && selectedCollection.items.length > 0 ? (
                 <div
                   style={{
                     display: "grid",
@@ -219,7 +285,7 @@ export default function CollectionsPage() {
                     gap: "20px",
                   }}
                 >
-                  {selectedCollection.items.map((ci: any) => (
+                  {selectedCollection.items.map((ci) => (
                     <MediaCard key={ci.id} item={ci.userMedia} />
                   ))}
                 </div>
@@ -300,6 +366,7 @@ export default function CollectionsPage() {
                   Cancel
                 </button>
                 <button type="submit" disabled={creating} className="btn-primary">
+                  {creating && <Loader2 size={14} className="spinner" />}
                   {creating ? "Creating..." : "Create Collection"}
                 </button>
               </div>
@@ -307,6 +374,18 @@ export default function CollectionsPage() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={Boolean(collectionToDelete)}
+        title="Delete Collection"
+        message={`Are you sure you want to delete "${collectionToDelete?.name}"? The media entries inside this collection will remain safe in your vault.`}
+        confirmText="Delete Collection"
+        confirmVariant="danger"
+        loading={deleting}
+        onConfirm={executeDeleteCollection}
+        onCancel={() => setCollectionToDelete(null)}
+      />
     </div>
   );
 }

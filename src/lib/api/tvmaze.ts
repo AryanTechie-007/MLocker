@@ -14,6 +14,13 @@ interface TVMazeShowItem {
     rating?: {
       average?: number;
     };
+    network?: {
+      name?: string;
+    };
+    webChannel?: {
+      name?: string;
+    };
+    officialSite?: string;
   };
 }
 
@@ -35,6 +42,12 @@ export async function searchTV(query: string): Promise<MediaSearchResult[]> {
       // Strip basic HTML tags from TVMaze summary
       const cleanSummary = (show.summary || "").replace(/<[^>]*>?/gm, "").trim();
 
+      // Extract streaming platform or network
+      const providerName = show.webChannel?.name || show.network?.name;
+      const watchProviders = providerName
+        ? [{ name: providerName, url: show.officialSite || undefined, type: "stream" as const }]
+        : undefined;
+
       return {
         externalId: String(show.id),
         externalSource: "tvmaze",
@@ -45,6 +58,7 @@ export async function searchTV(query: string): Promise<MediaSearchResult[]> {
         genres: show.genres || [],
         overview: cleanSummary,
         externalRating: show.rating?.average || null,
+        watchProviders,
       };
     });
   } catch (err) {

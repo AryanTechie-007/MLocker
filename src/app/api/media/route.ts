@@ -1,25 +1,7 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-
-async function getOrCreateUserId(): Promise<string | null> {
-  const session = await auth();
-  if (session?.user?.id) {
-    return session.user.id;
-  }
-
-  // Fallback guest user for effortless local testing
-  const guest = await prisma.user.upsert({
-    where: { email: "guest@medialocker.local" },
-    update: {},
-    create: {
-      name: "Guest Explorer",
-      email: "guest@medialocker.local",
-    },
-  });
-
-  return guest.id;
-}
+import { getOrCreateUserId } from "@/lib/get-user";
+import { Prisma } from "@prisma/client";
 
 export async function GET(req: Request) {
   try {
@@ -33,8 +15,11 @@ export async function GET(req: Request) {
     const status = searchParams.get("status");
     const isFavorite = searchParams.get("favorite");
     const search = searchParams.get("q");
+    const limit = searchParams.get("limit");
+    const sortBy = searchParams.get("sortBy") || "updatedAt";
+    const sortOrder = searchParams.get("sortOrder") === "asc" ? "asc" : "desc";
 
-    const whereClause: any = { userId };
+    const whereClause: Prisma.UserMediaWhereInput = { userId };
 
     if (mediaType && mediaType !== "all") {
       whereClause.mediaType = mediaType;
@@ -54,9 +39,13 @@ export async function GET(req: Request) {
       };
     }
 
+    const validSortFields = ["updatedAt", "createdAt", "rating", "year", "title"];
+    const orderField = validSortFields.includes(sortBy) ? sortBy : "updatedAt";
+
     const items = await prisma.userMedia.findMany({
       where: whereClause,
-      orderBy: { updatedAt: "desc" },
+      orderBy: { [orderField]: sortOrder },
+      take: limit ? parseInt(limit, 10) : undefined,
     });
 
     return NextResponse.json({ items });

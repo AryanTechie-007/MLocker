@@ -1,27 +1,23 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, useCallback, use } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  Star,
   Heart,
-  Calendar,
-  Layers,
   Save,
   Trash2,
-  Share2,
-  FolderPlus,
-  Play,
   Film,
-  Tv,
-  Sparkles,
-  Gamepad2,
-  BookOpen,
+  ExternalLink,
 } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import { useToast } from "@/components/Toast";
+import { Skeleton } from "@/components/Skeleton";
+import { getQuickSearchProviders } from "@/components/WatchProviderBadge";
+import { UserMediaItem, Collection } from "@/lib/types";
 
 export default function MediaDetailPage({
   params,
@@ -30,11 +26,14 @@ export default function MediaDetailPage({
 }) {
   const router = useRouter();
   const { id } = use(params);
+  const { showToast } = useToast();
 
-  const [item, setItem] = useState<any>(null);
-  const [collections, setCollections] = useState<any[]>([]);
+  const [item, setItem] = useState<UserMediaItem | null>(null);
+  const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   // Form State
   const [status, setStatus] = useState("plan_to_consume");
@@ -48,9 +47,8 @@ export default function MediaDetailPage({
   const [hoursPlayed, setHoursPlayed] = useState<number>(0);
 
   // Fetch Media Details & Collections
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
-      setLoading(true);
       const [mediaRes, collectionsRes] = await Promise.all([
         fetch(`/api/media/${id}`),
         fetch("/api/collections"),
@@ -80,10 +78,42 @@ export default function MediaDetailPage({
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
-    fetchData();
+    let ignore = false;
+    Promise.all([fetch(`/api/media/${id}`), fetch("/api/collections")])
+      .then(async ([mediaRes, collectionsRes]) => {
+        if (ignore) return;
+        if (mediaRes.ok) {
+          const data = await mediaRes.json();
+          const m = data.item;
+          setItem(m);
+          setStatus(m.status);
+          setRating(m.rating !== null && m.rating !== undefined ? m.rating : "");
+          setReview(m.review || "");
+          setIsFavorite(Boolean(m.isFavorite));
+          setWatchedEpisodes(m.watchedEpisodes || 0);
+          setTotalEpisodes(m.totalEpisodes || null);
+          setReadChapters(m.readChapters || 0);
+          setTotalChapters(m.totalChapters || null);
+          setHoursPlayed(m.hoursPlayed || 0);
+        }
+        if (collectionsRes.ok) {
+          const collData = await collectionsRes.json();
+          setCollections(collData.collections || []);
+        }
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (!ignore) {
+          console.error(err);
+          setLoading(false);
+        }
+      });
+    return () => {
+      ignore = true;
+    };
   }, [id]);
 
   const handleSave = async () => {
@@ -107,29 +137,67 @@ export default function MediaDetailPage({
       if (res.ok) {
         const data = await res.json();
         setItem(data.item);
+        showToast("Saved all changes successfully!", "success");
+      } else {
+        showToast("Failed to save changes", "error");
       }
     } catch (err) {
       console.error(err);
+      showToast("Network error while saving", "error");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async () => {
-    if (!confirm(`Are you sure you want to remove "${item?.title}" from your library?`)) return;
+  const handleToggleFavorite = async () => {
+    const nextFavorite = !isFavorite;
+    setIsFavorite(nextFavorite);
     try {
-      const res = await fetch(`/api/media/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/media/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isFavorite: nextFavorite }),
+      });
       if (res.ok) {
-        router.push("/library");
+        const data = await res.json();
+        setItem(data.item);
+        showToast(
+          nextFavorite ? "Added to favorites" : "Removed from favorites",
+          "info"
+        );
+      } else {
+        setIsFavorite(!nextFavorite);
+        showToast("Failed to update favorite status", "error");
       }
     } catch (err) {
       console.error(err);
+      setIsFavorite(!nextFavorite);
+      showToast("Network error", "error");
+    }
+  };
+
+  const executeDelete = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/media/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        showToast(`Removed "${item?.title}" from your library`, "info");
+        router.push("/library");
+      } else {
+        showToast("Failed to remove media item", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Network error while deleting", "error");
+    } finally {
+      setDeleting(false);
+      setIsConfirmOpen(false);
     }
   };
 
   const handleToggleCollection = async (collectionId: string, isInCollection: boolean) => {
     try {
-      await fetch(`/api/collections/${collectionId}`, {
+      const res = await fetch(`/api/collections/${collectionId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -137,16 +205,52 @@ export default function MediaDetailPage({
           action: isInCollection ? "remove" : "add",
         }),
       });
-      fetchData();
+      if (res.ok) {
+        showToast(
+          isInCollection ? "Removed from collection" : "Added to collection",
+          "success"
+        );
+        fetchData();
+      } else {
+        showToast("Failed to update collection", "error");
+      }
     } catch (err) {
       console.error(err);
+      showToast("Network error updating collection", "error");
     }
   };
 
   if (loading) {
     return (
-      <div style={{ textAlign: "center", padding: "100px 20px", color: "var(--text-muted)" }}>
-        Loading media metadata...
+      <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+        <Skeleton width="140px" height="24px" style={{ marginBottom: "24px" }} />
+        <div
+          className="glass-panel"
+          style={{
+            padding: "32px",
+            borderRadius: "var(--radius-lg)",
+            display: "flex",
+            gap: "32px",
+            flexWrap: "wrap",
+            marginBottom: "32px",
+          }}
+        >
+          <Skeleton
+            width="220px"
+            height="320px"
+            borderRadius="var(--radius-md)"
+            style={{ flexShrink: 0 }}
+          />
+          <div style={{ flex: 1, minWidth: "280px", display: "flex", flexDirection: "column", gap: "16px" }}>
+            <Skeleton height="36px" width="60%" />
+            <Skeleton height="20px" width="30%" />
+            <Skeleton height="80px" width="100%" />
+            <div style={{ marginTop: "auto", display: "flex", gap: "12px", paddingTop: "20px" }}>
+              <Skeleton height="40px" width="140px" />
+              <Skeleton height="40px" width="160px" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -309,13 +413,62 @@ export default function MediaDetailPage({
             </p>
           )}
 
+          {/* Direct Streaming & Storefront Searches */}
+          <div style={{ marginBottom: "24px" }}>
+            <span
+              style={{
+                fontSize: "0.78rem",
+                fontWeight: 700,
+                color: "var(--text-dim)",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                display: "block",
+                marginBottom: "10px",
+              }}
+            >
+              Watch / Search on Streaming Services
+            </span>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              {getQuickSearchProviders(item.title, item.mediaType).map((provider) => (
+                <a
+                  key={provider.name}
+                  href={provider.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "7px 13px",
+                    borderRadius: "6px",
+                    fontSize: "0.82rem",
+                    fontWeight: 600,
+                    textDecoration: "none",
+                    color: provider.color,
+                    background: provider.bg,
+                    border: `1px solid ${provider.border}`,
+                    transition: "all 0.15s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-1px)";
+                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.3)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                >
+                  <span>{provider.label}</span>
+                  <ExternalLink size={12} opacity={0.7} />
+                </a>
+              ))}
+            </div>
+          </div>
+
           {/* Quick Favorite & Delete actions */}
           <div style={{ marginTop: "auto", display: "flex", alignItems: "center", gap: "12px", paddingTop: "20px" }}>
             <button
-              onClick={() => {
-                setIsFavorite(!isFavorite);
-                handleSave();
-              }}
+              onClick={handleToggleFavorite}
               className="btn-secondary"
               style={{
                 color: isFavorite ? "var(--accent-pink)" : "var(--text-muted)",
@@ -327,7 +480,7 @@ export default function MediaDetailPage({
             </button>
 
             <button
-              onClick={handleDelete}
+              onClick={() => setIsConfirmOpen(true)}
               className="btn-secondary"
               style={{ color: "var(--status-dropped)", borderColor: "rgba(248, 113, 113, 0.3)" }}
             >
@@ -526,7 +679,7 @@ export default function MediaDetailPage({
             {collections.length > 0 ? (
               <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
                 {collections.map((col) => {
-                  const isIn = col.items?.some((ci: any) => ci.userMediaId === id);
+                  const isIn = Boolean(col.items?.some((ci) => ci.userMediaId === id));
                   return (
                     <button
                       key={col.id}
@@ -556,6 +709,17 @@ export default function MediaDetailPage({
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={isConfirmOpen}
+        title="Remove from Library"
+        message={`Are you sure you want to remove "${item.title}" from your library? All associated ratings, notes, and progress logs will be permanently deleted.`}
+        confirmText="Remove from Library"
+        confirmVariant="danger"
+        loading={deleting}
+        onConfirm={executeDelete}
+        onCancel={() => setIsConfirmOpen(false)}
+      />
     </div>
   );
 }

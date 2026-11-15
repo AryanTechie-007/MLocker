@@ -1,16 +1,6 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-
-async function getOrCreateUserId(): Promise<string | null> {
-  const session = await auth();
-  if (session?.user?.id) return session.user.id;
-
-  const guest = await prisma.user.findUnique({
-    where: { email: "guest@medialocker.local" },
-  });
-  return guest?.id || null;
-}
+import { getOrCreateUserId } from "@/lib/get-user";
 
 export async function GET() {
   try {
@@ -103,19 +93,32 @@ export async function GET() {
       // Genres
       if (item.genres) {
         try {
-          const parsed = JSON.parse(item.genres);
+          const parsed = typeof item.genres === "string" && item.genres.startsWith("[")
+            ? JSON.parse(item.genres)
+            : item.genres;
           if (Array.isArray(parsed)) {
             parsed.forEach((g: string) => {
-              const cleaned = g.trim();
+              if (typeof g === "string") {
+                const cleaned = g.replace(/[[\]"]/g, "").trim();
+                if (cleaned) {
+                  genreCounts[cleaned] = (genreCounts[cleaned] || 0) + 1;
+                }
+              }
+            });
+          } else if (typeof parsed === "string") {
+            parsed.split(",").forEach((g: string) => {
+              const cleaned = g.replace(/[[\]"]/g, "").trim();
               if (cleaned) {
                 genreCounts[cleaned] = (genreCounts[cleaned] || 0) + 1;
               }
             });
           }
         } catch {
-          // not JSON, fallback single string
-          const cleaned = item.genres.trim();
-          if (cleaned) genreCounts[cleaned] = (genreCounts[cleaned] || 0) + 1;
+          // not JSON, fallback comma-separated string
+          item.genres.split(",").forEach((g: string) => {
+            const cleaned = g.replace(/[[\]"]/g, "").trim();
+            if (cleaned) genreCounts[cleaned] = (genreCounts[cleaned] || 0) + 1;
+          });
         }
       }
     });

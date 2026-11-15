@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import { ToastProvider } from "@/components/Toast";
 
 export const metadata: Metadata = {
   title: "Media Locker — Universal Media Tracker",
@@ -15,12 +16,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <div className="app-container">
-          <Navbar />
-          <main className="main-content">
-            {children}
-          </main>
-        </div>
+        <ToastProvider>
+          <div className="app-container">
+            <Navbar />
+            <main className="main-content">
+              {children}
+            </main>
+          </div>
+        </ToastProvider>
       </body>
     </html>
   );

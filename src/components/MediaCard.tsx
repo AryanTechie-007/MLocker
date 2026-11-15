@@ -2,31 +2,21 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Star, Heart, Film, Tv, Sparkles, Gamepad2, BookOpen, Edit2, Play } from "lucide-react";
+import { Star, Heart, Film, Tv, Sparkles, Gamepad2, BookOpen, Edit2, BookMarked } from "lucide-react";
 import StatusBadge from "./StatusBadge";
 import { useState } from "react";
+import { useToast } from "./Toast";
+import WatchProviderBadge from "./WatchProviderBadge";
+import { UserMediaItem, WatchProvider } from "@/lib/types";
 
 interface MediaCardProps {
-  item: {
-    id: string;
-    mediaType: string;
-    title: string;
-    posterUrl?: string | null;
-    year?: number | null;
-    status: string;
-    rating?: number | null;
-    isFavorite?: boolean;
-    totalEpisodes?: number | null;
-    watchedEpisodes?: number | null;
-    totalChapters?: number | null;
-    readChapters?: number | null;
-    hoursPlayed?: number | null;
-  };
-  onEdit?: (item: any) => void;
+  item: UserMediaItem;
+  onEdit?: (item: UserMediaItem) => void;
   onToggleFavorite?: (id: string, current: boolean) => void;
 }
 
 export default function MediaCard({ item, onEdit, onToggleFavorite }: MediaCardProps) {
+  const { showToast } = useToast();
   const [imgError, setImgError] = useState(false);
   const [favorite, setFavorite] = useState(Boolean(item.isFavorite));
 
@@ -37,8 +27,9 @@ export default function MediaCard({ item, onEdit, onToggleFavorite }: MediaCardP
       case "tv":
         return <Tv size={13} />;
       case "anime":
-      case "manga":
         return <Sparkles size={13} />;
+      case "manga":
+        return <BookMarked size={13} />;
       case "game":
         return <Gamepad2 size={13} />;
       case "novel":
@@ -79,13 +70,22 @@ export default function MediaCard({ item, onEdit, onToggleFavorite }: MediaCardP
       onToggleFavorite(item.id, !favorite);
     } else {
       try {
-        await fetch(`/api/media/${item.id}`, {
+        const res = await fetch(`/api/media/${item.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ isFavorite: nextVal }),
         });
+        if (res.ok) {
+          showToast(
+            nextVal ? `Added "${item.title}" to favorites` : `Removed "${item.title}" from favorites`,
+            "info"
+          );
+        } else {
+          setFavorite(!nextVal);
+        }
       } catch (err) {
         console.error(err);
+        setFavorite(!nextVal);
       }
     }
   };
@@ -253,6 +253,41 @@ export default function MediaCard({ item, onEdit, onToggleFavorite }: MediaCardP
             </span>
           )}
         </div>
+
+        {/* Streaming Platform Badge if available */}
+        {(() => {
+          let providers: WatchProvider[] = [];
+          if (item.tags) {
+            try {
+              const parsed = JSON.parse(item.tags);
+              if (Array.isArray(parsed)) {
+                providers = parsed.map((p) => (typeof p === "string" ? { name: p } : p));
+              }
+            } catch {
+              providers = item.tags.split(",").map((s) => ({ name: s.trim() })).filter((p) => p.name);
+            }
+          }
+          if (providers.length === 0) {
+            if (item.mediaType === "anime") {
+              providers = [{ name: "Crunchyroll" }];
+            } else if (item.mediaType === "game") {
+              providers = [{ name: "Steam" }];
+            } else if (item.externalSource === "itunes") {
+              providers = [{ name: "Apple TV" }];
+            }
+          }
+          return providers.length > 0 ? (
+            <div style={{ marginTop: "4px" }}>
+              <WatchProviderBadge
+                providers={providers}
+                compact
+                title={item.title}
+                mediaType={item.mediaType}
+                showQuickSearch={false}
+              />
+            </div>
+          ) : null;
+        })()}
 
         {/* Status and Rating Row */}
         <div
