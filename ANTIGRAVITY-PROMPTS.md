@@ -1,63 +1,98 @@
 # Antigravity Prompt Playbook for MLocker
 
-This file contains copy-paste ready, context-engineered prompts for Google Antigravity and other agentic AI systems working on the **MLocker** codebase.
+This file is a comprehensive collection of context-engineered, copy-paste ready prompts for Google Antigravity and other AI agents working on **MLocker**.
 
-Each prompt is mapped directly to a milestone from [implementation-plan.md](file:///implementation-plan.md) and instructs the agent on context loading, constraints, deliverables, and verification procedures.
+All prompts are aligned with the principles in [AGENTS.md](file:///AGENTS.md), the architectural milestones in [implementation-plan.md](file:///implementation-plan.md), and the specialised skills under `.agents/skills/`.
 
 ---
 
 ## Table of Contents
-1. [General Agent Instructions](#general-agent-instructions)
-2. [Milestone 0: Baseline Audit & Sanity Check](#milestone-0-baseline-audit--sanity-check)
-3. [Milestone 1: Security Hardening & Auth Remediation](#milestone-1-security-hardening--auth-remediation)
-4. [Milestone 2: Prisma & Electron Database Provisioning](#milestone-2-prisma--electron-database-provisioning)
-5. [Milestone 3: Six Media Categories Expansion & Unified Search](#milestone-3-six-media-categories-expansion--unified-search)
-6. [Milestone 4: External Source Manager & Link Launcher](#milestone-4-external-source-manager--link-launcher)
-7. [Milestone 5: Session Engine & Activity Ingestion Core](#milestone-5-session-engine--activity-ingestion-core)
-8. [Milestone 6: Chromium Browser Extension MVP](#milestone-6-chromium-browser-extension-mvp)
-9. [Milestone 7: Local-First Cloud Synchronization Engine](#milestone-7-local-first-cloud-synchronization-engine)
-10. [Milestone 8: Analytics, Performance & Quality Assurance](#milestone-8-analytics-performance--quality-assurance)
+1. [General Agent Invocation Standard](#general-agent-invocation-standard)
+2. [Section A: Planning Prompts](#section-a-planning-prompts)
+3. [Section B: Implementation Prompts (Milestones 0–8)](#section-b-implementation-prompts-milestones-08)
+4. [Section C: Debugging Prompts](#section-c-debugging-prompts)
+5. [Section D: Testing Prompts](#section-d-testing-prompts)
+6. [Section E: Code Review Prompts](#section-e-code-review-prompts)
+7. [Section F: Security Audit Prompts](#section-f-security-audit-prompts)
+8. [Section G: Milestone Completion Prompts](#section-g-milestone-completion-prompts)
 
 ---
 
-## General Agent Instructions
+## General Agent Invocation Standard
 
-When prompting Antigravity, prefix tasks with:
+When kicking off any major task in Antigravity, prepend this instruction header:
+
 ```markdown
-Read @AGENTS.md and @implementation-plan.md before performing any action. 
-Strictly adhere to the referenced skill guides under .agents/skills/.
-Do not perform broad unrequested refactors. Work strictly within the requested milestone scope.
+Read @AGENTS.md and @implementation-plan.md before performing any action.
+Adhere strictly to relevant skills under .agents/skills/.
+Do not perform broad unrequested refactors. Preserve existing foundations.
+Security, privacy, and data integrity take priority over implementation speed.
 ```
 
 ---
 
-## Milestone 0: Baseline Audit & Sanity Check
+## Section A: Planning Prompts
 
+### A1: Feature Architecture & Boundary Breakdown
+```markdown
+Read @AGENTS.md, @implementation-plan.md, and @.agents/skills/mlocker-architecture/SKILL.md.
+
+TASK:
+Produce an architectural design specification for implementing [FEATURE_NAME].
+
+REQUIREMENTS:
+1. Deconstruct the feature into:
+   - Pure Domain Logic (`src/lib/domain/`): calculations, state transitions, validation schemas (zero framework imports).
+   - Database / Persistence (`prisma/`): schema modifications, indices, migration requirements.
+   - Next.js Web Layer (`src/app/`, `src/components/`): server actions, API handlers, responsive UI.
+   - Electron Desktop Layer (`electron/`): IPC channels, main process handlers, local storage.
+   - Extension Layer (`extension/`, if applicable): permissions, event listeners, local bridge payload.
+2. Identify IDOR / tenant isolation boundaries for this feature.
+3. Detail how this feature works offline in Electron SQLite and how it reconciles during cloud sync.
+4. Output a concise markdown plan with file paths, data contracts, and risk analysis. Do not write feature code yet.
+```
+
+### A2: Database Schema & Migration Planning
+```markdown
+Read @AGENTS.md, @implementation-plan.md, and @.agents/skills/prisma-electron-database/SKILL.md.
+
+TASK:
+Plan a schema migration for [PROPOSED_CHANGES].
+
+REQUIREMENTS:
+1. Model the proposed changes in `prisma/schema.prisma` supporting both SQLite (desktop) and PostgreSQL (cloud).
+2. Ensure soft-deletion (`deletedAt`), version counters, and timestamps (`createdAt`, `updatedAt`) are included for sync compatibility.
+3. Specify compound indices for tenant isolation (`[userId, ...]`) and fast delta queries (`[userId, updatedAt]`).
+4. Detail the migration execution strategy for desktop: how will Electron apply this schema upgrade on clean installs and existing databases using `PRAGMA user_version` without Prisma CLI in production?
+5. Identify any breaking changes to existing data or queries.
+```
+
+---
+
+## Section B: Implementation Prompts (Milestones 0–8)
+
+### Milestone 0: Baseline Audit & Sanity Check
 ```markdown
 Read @AGENTS.md, @implementation-plan.md, and @.agents/skills/mlocker-test-and-verify/SKILL.md.
 
 TASK:
-Produce the Milestone 0 Baseline Report for MLocker before any feature code is changed.
+Execute Milestone 0 Baseline Audit for MLocker before modifying any application code.
 
 REQUIREMENTS:
-1. Identify the current Git commit, branch status, and any untracked or dirty files.
-2. Run static verification:
-   - TypeScript typechecking (`npx tsc --noEmit`)
-   - ESLint (`npm run lint`)
-   - Application build verification (`npm run build`)
-3. Inspect and confirm the status of known audit findings documented in Section 2 of implementation-plan.md:
-   - Check if unauthenticated requests fall back to a guest identity.
+1. Verify Git status, active branch, and working tree clean state.
+2. Run baseline quality checks:
+   - `npx tsc --noEmit`
+   - `npm run lint`
+   - `npm run build`
+3. Check and confirm the status of audit findings from Section 2 of implementation-plan.md:
+   - Check API routes for unauthenticated guest fallbacks.
    - Check collection-item association queries for cross-tenant IDOR checks.
-   - Check Electron's current SQLite database provisioning path.
-   - Check if Manga and Book/Novel categories are implemented across UI filters and search.
-4. Output a concise markdown report detailing exact findings, failing commands, and immediate risks.
-Do not modify any application code in this step.
+   - Check Electron database provisioning path (`app.getPath('userData')` vs bundled path).
+   - Check category coverage for Manga and Books/Novels in filters, search, and modals.
+4. Output a concise baseline report. Do not modify application source code.
 ```
 
----
-
-## Milestone 1: Security Hardening & Auth Remediation
-
+### Milestone 1: Security Hardening & Auth Remediation
 ```markdown
 Read @AGENTS.md, @implementation-plan.md, and @.agents/skills/secure-development/SKILL.md.
 
@@ -65,27 +100,23 @@ TASK:
 Implement Milestone 1: Security Hardening & Authentication Remediation.
 
 REQUIREMENTS:
-1. Audit and eliminate all unauthenticated fallbacks to shared 'guest' accounts in API routes:
+1. Eliminate all unauthenticated fallbacks to shared 'guest' accounts:
    - Reject unauthenticated mutations with HTTP 401 Unauthorized.
-   - Ensure all database queries strictly filter by the authenticated user's session ID (`session.userId`).
-2. Enforce relational ownership validation (IDOR prevention):
-   - When associating a MediaItem with a Collection, verify BOTH the collection and media item belong to the requesting user before performing the join.
-3. Implement server-side input validation using Zod:
-   - Validate category enums, status enums, rating bounds (0-100), progress numbers, and URL protocols (`http:`, `https:` only).
-4. Remove any hardcoded secrets or embedded API tokens from source code. Ensure secrets are loaded strictly from validated environment variables.
-5. Harden Electron IPC in `electron/preload.js` and `electron/main.js`:
-   - Validate all channel arguments. Never pass raw SQL strings or unrestricted file paths.
+   - Ensure all queries filter strictly by `session.userId`.
+2. Enforce relational ownership verification:
+   - When associating a MediaItem with a Collection, verify BOTH items belong to `session.userId`.
+3. Implement runtime input validation with Zod on all API endpoints:
+   - Validate category enums, status enums, rating limits (0-100), progress numbers, and URL protocols (`http:`, `https:` only).
+4. Remove hardcoded secrets or API tokens; load strictly from validated environment variables.
+5. Harden Electron IPC in `electron/preload.js` and `electron/main.js` (channel whitelisting, argument validation, no raw SQL).
 
 VERIFICATION:
 - Run `npx tsc --noEmit` and `npm run lint`.
-- Add unit/integration tests confirming unauthorized requests are rejected and IDOR attempts fail with 403/404.
-- Update Milestone 1 checkbox in `implementation-plan.md`.
+- Add tests verifying unauthenticated and IDOR requests are rejected.
+- Update Milestone 1 in `implementation-plan.md`.
 ```
 
----
-
-## Milestone 2: Prisma & Electron Database Provisioning
-
+### Milestone 2: Prisma & Electron Database Provisioning
 ```markdown
 Read @AGENTS.md, @implementation-plan.md, and @.agents/skills/prisma-electron-database/SKILL.md.
 
@@ -93,119 +124,83 @@ TASK:
 Implement Milestone 2: Database Reliability & Electron Clean-Install Provisioning.
 
 REQUIREMENTS:
-1. Electron Database Location:
-   - Ensure the SQLite database file is created and accessed within Electron's `app.getPath('userData')` directory.
-   - Ensure packaged builds never attempt to write to read-only app bundle resource paths.
-2. Clean Installation Migration Runner:
-   - Implement an automated database migration/initialization runner in the Electron main process that works without requiring the global Prisma CLI in production distribution.
-   - Use SQLite `PRAGMA user_version` tracking for incremental schema version upgrades.
-3. Schema Refinements:
-   - Update `prisma/schema.prisma` to include models for `MediaItem`, `Collection`, `CollectionItem`, `ActivitySession`, `ExternalSource`, and `SyncJournal`.
-   - Add soft deletion (`deletedAt`) to support sync tombstones.
-   - Add appropriate compound indices on `[userId, category]` and `[userId, updatedAt]`.
+1. Ensure the desktop SQLite database resides strictly in `app.getPath('userData')`.
+2. Implement a runtime migration runner in Electron main process that tracks `PRAGMA user_version` without requiring `@prisma/cli` in production distribution.
+3. Update `prisma/schema.prisma` with models for `MediaItem`, `Collection`, `CollectionItem`, `ActivitySession`, `ExternalSource`, and `SyncJournal`.
+4. Include `deletedAt` for sync tombstones and compound indices on `[userId, category]` and `[userId, updatedAt]`.
 
 VERIFICATION:
-- Test initializing a fresh SQLite database from scratch.
-- Verify migrations run sequentially without crashing.
-- Run `npx tsc --noEmit` and build test.
-- Update Milestone 2 checkbox in `implementation-plan.md`.
+- Test fresh database initialization on empty profile.
+- Verify migrations run sequentially inside a transaction.
+- Run `npx tsc --noEmit` and `npm run build`.
+- Update Milestone 2 in `implementation-plan.md`.
 ```
 
----
-
-## Milestone 3: Six Media Categories Expansion & Unified Search
-
+### Milestone 3: Six Media Categories Expansion & Unified Search
 ```markdown
 Read @AGENTS.md, @implementation-plan.md, and @.agents/skills/mlocker-architecture/SKILL.md.
 
 TASK:
-Implement Milestone 3: Complete Six Media Categories Support and Unified Library Management.
+Implement Milestone 3: Six Media Categories Expansion and Unified Search.
 
 REQUIREMENTS:
-1. Implement full first-class support for all six categories:
-   - Movies (`MOVIE`), TV Shows (`TV_SHOW`), Anime (`ANIME`), Manga (`MANGA`), Games (`GAME`), Books/Novels (`BOOK`).
-2. Category-Specific Progress Metrics & Attributes:
-   - Movies: Runtime minutes & watched toggle.
-   - TV Shows & Anime: Season and episode trackers.
-   - Manga: Chapter and volume trackers.
-   - Books/Novels: Chapter, page, or percentage progress.
-   - Games: Playtime hours and completion status.
-3. UI & Search Updates:
-   - Ensure library filter bar, category tabs, and manual entry modals support all six categories.
-   - Fix stale modal state where editing an item preserves previous item form state.
-   - Add debouncing, request cancellation, or stale-response guards to unified search queries.
+1. Implement full support for all six categories: Movies (`MOVIE`), TV Shows (`TV_SHOW`), Anime (`ANIME`), Manga (`MANGA`), Games (`GAME`), Books/Novels (`BOOK`).
+2. Add category-specific progress trackers (seasons/episodes for TV/Anime, chapters/volumes for Manga, pages/chapters for Books, hours for Games).
+3. Update library filters, navigation tabs, and add/edit modals for all six categories.
+4. Fix stale modal form state when switching selected items.
+5. Implement request debouncing and cancellation on unified search queries.
 
 VERIFICATION:
-- Test creating, updating, filtering, and searching items across all 6 categories.
-- Verify TypeScript types match Prisma schema enums.
-- Run `npm run lint` and `npx tsc --noEmit`.
-- Update Milestone 3 checkbox in `implementation-plan.md`.
+- Test item creation, update, and filtering across all 6 categories.
+- Run `npx tsc --noEmit` and `npm run lint`.
+- Update Milestone 3 in `implementation-plan.md`.
 ```
 
----
-
-## Milestone 4: External Source Manager & Link Launcher
-
+### Milestone 4: External Source Manager & Link Launcher
 ```markdown
 Read @AGENTS.md, @implementation-plan.md, and @.agents/skills/secure-development/SKILL.md.
 
 TASK:
-Implement Milestone 4: External Source Manager and Link Launcher.
+Implement Milestone 4: External Source Manager & Link Launcher.
 
 REQUIREMENTS:
-1. Domain Link Configuration:
-   - Allow users to attach one or more external source links/domain patterns to any `MediaItem` (e.g. streaming URLs, reader links, game store pages).
-   - Validate URL formats and protocol constraints (`http:` and `https:` only).
-2. Desktop Link Launcher:
-   - In Electron, launch external URLs safely using Electron's `shell.openExternal` after validating the URL string.
-   - Never load untrusted external URLs inside Electron's main application window.
-3. Web Link Launcher:
-   - In Next.js web client, open links in new tabs using `rel="noopener noreferrer"`.
-4. Management Interface:
-   - Provide UI to add, label, edit, and remove external sources from the media item detail view.
+1. Allow users to register external source URLs and domain patterns for any MediaItem.
+2. Validate URLs strictly (`http:` and `https:` protocols only).
+3. In Electron, launch links safely via `shell.openExternal` after protocol validation (never load external URLs in the app window).
+4. In Web, open links safely with `rel="noopener noreferrer"`.
+5. Provide UI to manage, label, and toggle tracking on external sources.
 
 VERIFICATION:
-- Verify that invalid schemes (`javascript:`, `file:`) are rejected.
-- Test link launching on desktop and web.
+- Test invalid protocol rejection (`javascript:`, `file:`).
+- Verify launch behavior on desktop and web.
 - Run `npx tsc --noEmit`.
-- Update Milestone 4 checkbox in `implementation-plan.md`.
+- Update Milestone 4 in `implementation-plan.md`.
 ```
 
----
-
-## Milestone 5: Session Engine & Activity Ingestion Core
-
+### Milestone 5: Session Engine & Activity Ingestion Core
 ```markdown
 Read @AGENTS.md, @implementation-plan.md, and @.agents/skills/mlocker-session-tracking/SKILL.md.
 
 TASK:
-Implement Milestone 5: Session Engine and Activity Ingestion Pipeline.
+Implement Milestone 5: Activity Session Engine & Ingestion Pipeline.
 
 REQUIREMENTS:
-1. Domain Session Engine (`src/lib/domain/session/`):
-   - Pure, framework-agnostic session aggregation module.
-   - Implement heartbeat ingestion: accept pulse `(mediaItemId, timestamp, duration)`.
-   - Implement debouncing and rollup: continuous pulses within `MAX_GAP` (45s) extend the current session; gaps > `MAX_GAP` seal the session and start a new one.
-   - Calculate verified `activeSeconds` excluding idle periods.
-2. Ingestion Endpoints / IPC:
-   - Implement secure Next.js API route `/api/tracking/heartbeat` and Electron IPC handler `tracking:heartbeat`.
-   - Validate all incoming payloads with Zod (`HeartbeatPayloadSchema`).
-3. Session Storage & History View:
-   - Persist completed sessions in `ActivitySession` table.
-   - Provide a UI view displaying recent activity sessions with active duration, timestamps, and manual delete/edit capabilities.
-4. Product Principles Compliance:
-   - Ensure UI labels clearly state 'Active Session Time' and do NOT claim 'Verified 100% Watched/Read'.
+1. Implement pure domain session engine in `src/lib/domain/session/`:
+   - Group incoming heartbeats into `ActivitySession` records.
+   - Debounce pulses within `MAX_GAP` (45s); close session when gap exceeded.
+   - Deduct idle time from `activeSeconds`.
+2. Implement secure heartbeat ingestion API (`/api/tracking/heartbeat`) and Electron IPC handler (`tracking:heartbeat`).
+3. Persist completed sessions in `ActivitySession` table with start, end, and active duration.
+4. Provide session history UI with manual edit/delete capabilities.
+5. Enforce language compliance: UI must state 'Observed Active Time' (never claim 'Verified 100% Watched').
 
 VERIFICATION:
-- Write comprehensive unit tests for `src/lib/domain/session/` covering continuous pulses, gap boundaries, and idle cutoffs.
+- Comprehensive unit tests for session engine covering continuous pulses, gap timeouts, and idle cutoffs.
 - Run `npm test` and `npx tsc --noEmit`.
-- Update Milestone 5 checkbox in `implementation-plan.md`.
+- Update Milestone 5 in `implementation-plan.md`.
 ```
 
----
-
-## Milestone 6: Chromium Browser Extension MVP
-
+### Milestone 6: Chromium Browser Extension MVP
 ```markdown
 Read @AGENTS.md, @implementation-plan.md, and @.agents/skills/mlocker-session-tracking/SKILL.md.
 
@@ -213,32 +208,20 @@ TASK:
 Implement Milestone 6: Chromium Browser Extension MVP (`extension/`).
 
 REQUIREMENTS:
-1. Extension Architecture (Manifest V3):
-   - Manifest configured with least-privilege permissions: `tabs`, `idle`, `storage`.
-   - Zero access to DOM, keystrokes, form fields, or passwords.
-2. Source Matching & Idle Detection:
-   - Match active tab URLs against user-registered source patterns.
-   - Detect active focus using `chrome.tabs.onActivated` and `chrome.windows.onFocusChanged`.
-   - Detect idle state with `chrome.idle.setDetectionInterval(60)` (60s cutoff).
-3. Heartbeat Transmission:
-   - Emit periodic heartbeats (every 15s) while tab is active and user is active.
-   - Transmit to local Electron loopback server or authenticated web API.
-   - Include client-side token authentication for the local bridge.
-4. Extension Popup UI:
-   - Show connection status (Connected / Disconnected / Paused).
-   - Master toggle to pause tracking.
-   - Display currently matched media item title if active.
+1. Manifest V3 extension with minimal permissions: `tabs`, `idle`, `storage`.
+2. Zero access to DOM, form inputs, passwords, or arbitrary browsing history.
+3. Match active tab URLs against user-registered domain patterns with explicit user permission.
+4. Detect idle state via `chrome.idle` (60s cutoff).
+5. Emit 15s heartbeats to desktop loopback bridge or web API with auth token.
+6. Popup UI with global tracking toggle and active connection indicator.
 
 VERIFICATION:
-- Test extension build in Chromium.
-- Verify heartbeat ceases immediately when tab loses focus or system is idle.
-- Update Milestone 6 checkbox in `implementation-plan.md`.
+- Test extension package in Chromium browser.
+- Verify pulses cease when tab loses focus or user is idle.
+- Update Milestone 6 in `implementation-plan.md`.
 ```
 
----
-
-## Milestone 7: Local-First Cloud Synchronization Engine
-
+### Milestone 7: Local-First Cloud Synchronization Engine
 ```markdown
 Read @AGENTS.md, @implementation-plan.md, and @.agents/skills/mlocker-sync-engineering/SKILL.md.
 
@@ -246,50 +229,183 @@ TASK:
 Implement Milestone 7: Local-First Cloud Synchronization Engine.
 
 REQUIREMENTS:
-1. Change Journal (`SyncJournal`):
-   - Record local mutations (MediaItem, Collection, Session) to `SyncJournal` in SQLite.
-   - Handle deletions via soft-delete tombstones (`deletedAt != null`).
-2. Sync Endpoints (Next.js):
-   - Implement `POST /api/sync/push`: Authenticated batch ingestion of client journal records.
-   - Implement `GET /api/sync/pull?since=<cursor>`: Incremental delta retrieval.
-3. Conflict Resolution:
-   - Implement Last-Write-Wins (LWW) based on `updatedAt` timestamps and entity version counters.
-   - Handle immutable `ActivitySession` records as append-only.
-4. Desktop Sync Client:
-   - Background worker with exponential backoff retry logic.
-   - Batching (max 100 changes per request) and idempotency keys.
-   - UI sync indicator (Synced, Syncing, Offline, Conflict).
+1. Implement `SyncJournal` in local SQLite tracking mutations and soft-deletes (`deletedAt`).
+2. Implement Next.js sync endpoints: `POST /api/sync/push` and `GET /api/sync/pull`.
+3. Implement Last-Write-Wins (LWW) conflict resolution using `updatedAt` and version counters.
+4. Treat `ActivitySession` records as append-only.
+5. Desktop background sync worker with retry backoff and batching (max 100 items).
+6. UI sync indicator badge (Synced, Syncing, Offline, Conflict).
+7. RULE: Never synchronize raw `.db` files directly.
 
 VERIFICATION:
 - Unit test conflict resolution with older vs newer timestamps.
-- Test offline modifications syncing successfully upon reconnect.
-- Verify raw `.db` files are never transferred over the network.
-- Update Milestone 7 checkbox in `implementation-plan.md`.
+- Test offline change queuing and reconnection sync.
+- Update Milestone 7 in `implementation-plan.md`.
 ```
 
----
-
-## Milestone 8: Analytics, Performance & Quality Assurance
-
+### Milestone 8: Analytics, Performance & Quality Assurance
 ```markdown
 Read @AGENTS.md, @implementation-plan.md, and @.agents/skills/mlocker-test-and-verify/SKILL.md.
 
 TASK:
-Implement Milestone 8: Analytics, Performance Optimization, and Final Verification.
+Implement Milestone 8: Analytics, Performance Optimization, and Quality Assurance.
 
 REQUIREMENTS:
-1. Database-Level Statistics Aggregation:
-   - Refactor client-side in-memory analytics to use Prisma `groupBy` and `aggregate` queries.
-   - Compute total active hours per category, weekly engagement trends, and completion ratios efficiently.
-2. Chart Optimization:
-   - Verify Recharts components render responsively and gracefully handle empty data states.
-3. End-to-End Quality Audit:
-   - Run full test suite (`npm test`).
-   - Run typecheck (`npx tsc --noEmit`) and linting (`npm run lint`).
-   - Test production build (`npm run build`).
-   - Verify that all items in the pre-commit checklist from `mlocker-test-and-verify` pass.
+1. Migrate client-side statistics to database-level Prisma `groupBy` and `aggregate` queries.
+2. Optimize Recharts dashboard components for responsive display and empty states.
+3. Run full verification suite (`tsc`, `lint`, `test`, `build`).
+4. Execute full pre-commit security and privacy audit checklist.
 
 VERIFICATION:
-- Produce a final milestone summary report with test results and performance metrics.
+- Produce final milestone verification report.
 - Update Milestone 8 in `implementation-plan.md`.
+```
+
+---
+
+## Section C: Debugging Prompts
+
+### C1: Diagnosing Tracking & Session Discrepancies
+```markdown
+Read @AGENTS.md, @implementation-plan.md, and @.agents/skills/mlocker-session-tracking/SKILL.md.
+
+TASK:
+Investigate and resolve session tracking discrepancy: [DESCRIBE ISSUE, e.g., session active duration exceeding wall clock time, or missing heartbeats].
+
+STEPS:
+1. Inspect heartbeat emission logs and payload timestamps.
+2. Trace heartbeat processing through `src/lib/domain/session/`.
+3. Verify whether idle detection interval (60s) and heartbeat interval (15s) correctly throttle pulse delivery.
+4. Check for timezone or daylight saving offset bugs in `startedAt`/`endedAt` calculations.
+5. Propose a root-cause explanation and minimal fix with regression unit tests.
+```
+
+### C2: Diagnosing Sync Conflicts & Data Divergence
+```markdown
+Read @AGENTS.md, @implementation-plan.md, and @.agents/skills/mlocker-sync-engineering/SKILL.md.
+
+TASK:
+Diagnose synchronization failure or data mismatch: [DESCRIBE ISSUE, e.g., duplicate entries, overwritten changes, sync loop].
+
+STEPS:
+1. Inspect the local `SyncJournal` entries and cloud PostgreSQL records for the affected entity IDs.
+2. Trace the push/pull payload exchange and verify the LWW timestamp comparison logic.
+3. Check if soft-delete tombstones (`deletedAt`) were properly applied or accidentally revived by an older client.
+4. Verify idempotency handling: did replayed batches create duplicate rows?
+5. Provide a deterministic fix and verify with concurrent sync simulation tests.
+```
+
+### C3: Diagnosing Electron IPC & SQLite Errors
+```markdown
+Read @AGENTS.md, @implementation-plan.md, and @.agents/skills/prisma-electron-database/SKILL.md.
+
+TASK:
+Diagnose Electron runtime or SQLite database failure: [DESCRIBE ERROR, e.g., SQLITE_BUSY, table not found, IPC invoke timeout].
+
+STEPS:
+1. Inspect the database file path resolution (`app.getPath('userData')`).
+2. Verify SQLite PRAGMA journal mode (`WAL` mode recommended for concurrent reads).
+3. Inspect `electron/preload.js` and `electron/main.js` channel definitions for mismatched handler names or unhandled promise rejections.
+4. Check if the database migration runner failed mid-transaction.
+5. Propose a robust fix ensuring clean startup and graceful error recovery.
+```
+
+---
+
+## Section D: Testing Prompts
+
+### D1: Domain Logic Unit Test Suite Generation
+```markdown
+Read @AGENTS.md, @implementation-plan.md, and @.agents/skills/mlocker-test-and-verify/SKILL.md.
+
+TASK:
+Generate comprehensive unit tests for domain module: [PATH_TO_MODULE, e.g., src/lib/domain/session/rollup.ts].
+
+REQUIREMENTS:
+1. Cover standard execution paths with deterministic fixtures.
+2. Test edge cases:
+   - Zero, negative, or abnormally large durations.
+   - Out-of-order timestamps or duplicate nonces.
+   - Null or undefined optional fields.
+   - Boundary conditions on maximum session gaps (`MAX_GAP = 45s`).
+3. Ensure tests run purely in-memory with zero network or filesystem dependencies.
+4. Verify tests pass with `npm test`.
+```
+
+### D2: API Route Boundary & IDOR Test Suite
+```markdown
+Read @AGENTS.md, @implementation-plan.md, and @.agents/skills/secure-development/SKILL.md.
+
+TASK:
+Create integration security tests for route: [ROUTE_PATH, e.g., /api/collections/[id]/items].
+
+REQUIREMENTS:
+1. Test 1 (Unauthenticated): Request without session -> Verify `401 Unauthorized`.
+2. Test 2 (IDOR - Parent): User A requests Collection belonging to User B -> Verify `404 Not Found` or `403 Forbidden`.
+3. Test 3 (IDOR - Child): User A attempts to attach MediaItem belonging to User B into User A's Collection -> Verify `403 Forbidden`.
+4. Test 4 (Invalid Input): Malformed JSON, negative numbers, invalid enums -> Verify `400 Bad Request` with Zod validation details.
+5. Test 5 (Happy Path): Valid authenticated mutation -> Verify `200/201 OK` and database state.
+```
+
+---
+
+## Section E: Code Review Prompts
+
+### E1: Pre-Merge Quality & Boundary Review
+```markdown
+Read @AGENTS.md, @implementation-plan.md, and relevant skills under .agents/skills/.
+
+TASK:
+Perform a comprehensive code review of the recent changes / branch.
+
+REVIEW CRITERIA:
+1. **Architecture & Boundaries:** Are domain calculations isolated in `src/lib/domain/`? Are Next.js and Electron concerns properly separated?
+2. **Security & Auth:** Are there any unauthenticated guest fallbacks? Are IDOR checks present on all relational operations? Are inputs validated with Zod?
+3. **Database Safety:** Are migrations clean? Does Electron locate SQLite in `userData`? Are soft deletes handled with tombstones? Is raw SQLite file sync avoided?
+4. **Privacy:** Does tracking require explicit opt-in? Is session time described as observed active time, not proof of consumption?
+5. **Quality Gates:** Do `tsc --noEmit`, `npm run lint`, and `npm test` pass without warnings or errors?
+6. Output a structured review listing: Strengths, Blocking Issues, Recommendations, and Approval Status.
+```
+
+---
+
+## Section F: Security Audit Prompts
+
+### F1: Comprehensive Vulnerability & Hardening Audit
+```markdown
+Read @AGENTS.md, @implementation-plan.md, and @.agents/skills/secure-development/SKILL.md.
+
+TASK:
+Perform a full security and credential hygiene audit of the MLocker codebase.
+
+AUDIT CHECKLIST:
+1. **Secret Scanning:** Scan codebase for hardcoded API keys, JWT secrets, database connection strings, or test tokens.
+2. **Auth & Tenant Isolation:** Verify that every database read/write queries by `session.userId`. Verify no route falls back to `"guest"`.
+3. **Electron Hardening:** Verify `BrowserWindow` settings (`contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`). Verify IPC handlers sanitize all inputs and avoid raw shell/SQL execution.
+4. **URL Injection:** Verify all external links validate protocol (`http:`, `https:` only) before opening via `shell.openExternal` or `window.open`.
+5. **Extension Permissions:** Verify Manifest V3 permissions adhere to least privilege. Verify no DOM sniffing or credential collection.
+6. Output a detailed Vulnerability Report with severity levels (Critical, High, Medium, Low) and concrete remediation diffs.
+```
+
+---
+
+## Section G: Milestone Completion Prompts
+
+### G1: Milestone Acceptance & Progress Tracker Sync
+```markdown
+Read @AGENTS.md, @implementation-plan.md, and @.agents/skills/mlocker-test-and-verify/SKILL.md.
+
+TASK:
+Perform formal acceptance verification for [MILESTONE_NUMBER, e.g., Milestone 1].
+
+STEPS:
+1. Review all acceptance criteria listed for this milestone in `implementation-plan.md`.
+2. Execute automated verification:
+   - `npx tsc --noEmit`
+   - `npm run lint`
+   - `npm test`
+   - `npm run build`
+3. Verify that all newly created files conform to the architectural guidelines in `AGENTS.md`.
+4. Update the Milestone status and evidence/PR reference in Section 11 of `implementation-plan.md`.
+5. Prepare a concise Milestone Completion Report summarizing implemented features, verified test results, and next steps for the upcoming milestone.
 ```
