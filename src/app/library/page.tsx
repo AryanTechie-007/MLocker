@@ -486,8 +486,9 @@ function LibraryContent() {
         </div>
       )}
 
-      {/* Edit & Add Modals */}
+      {/* Edit & Add Modals with explicit keys to guarantee zero stale-state retention */}
       <EditMediaModal
+        key={selectedEditItem ? `edit-${selectedEditItem.id}` : "edit-closed"}
         item={selectedEditItem}
         isOpen={Boolean(selectedEditItem)}
         onClose={() => setSelectedEditItem(null)}
@@ -496,6 +497,7 @@ function LibraryContent() {
       />
 
       <AddMediaModal
+        key={isAddModalOpen ? `add-open-${activeType}` : "add-closed"}
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         defaultType={activeType === "all" ? "game" : activeType}

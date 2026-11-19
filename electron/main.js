@@ -306,23 +306,8 @@ function setupMenu() {
 }
 
 // IPC Handlers
-ipcMain.handle("open-external", async (_, url) => {
-  if (typeof url !== "string") return false;
-  try {
-    const parsed = new URL(url.trim());
-    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-      await shell.openExternal(parsed.href);
-      return true;
-    }
-  } catch {
-    // Malformed URL, safely reject
-  }
-  return false;
-});
-
-ipcMain.handle("get-app-version", () => {
-  return app.getVersion();
-});
+const { registerIpcHandlers } = require("./ipc-handlers");
+registerIpcHandlers(ipcMain, shell, app);
 
 // Second instance focus
 app.on("second-instance", () => {

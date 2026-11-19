@@ -19,6 +19,11 @@ export async function GET() {
       where: { userId },
       include: {
         items: {
+          where: {
+            userMedia: {
+              userId,
+            },
+          },
           include: {
             userMedia: true,
           },

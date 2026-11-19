@@ -513,9 +513,10 @@ export default function SearchPage() {
         </div>
       )}
 
-      {/* Add Modals */}
+      {/* Add Modals with explicit keys */}
       {selectedItem && (
         <AddMediaModal
+          key={`search-item-${selectedItem.externalId || selectedItem.title}`}
           isOpen={Boolean(selectedItem)}
           onClose={() => setSelectedItem(null)}
           mediaItem={selectedItem}
@@ -523,6 +524,7 @@ export default function SearchPage() {
       )}
 
       <AddMediaModal
+        key={isManualModalOpen ? `manual-${activeType}` : "manual-closed"}
         isOpen={isManualModalOpen}
         onClose={() => setIsManualModalOpen(false)}
         defaultType={activeType === "all" ? "game" : activeType}

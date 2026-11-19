@@ -538,14 +538,16 @@ export default function Dashboard() {
         )}
       </section>
 
-      {/* Modals */}
+      {/* Modals with explicit keys to guarantee zero stale-state retention across opens */}
       <AddMediaModal
+        key={isAddModalOpen ? "add-modal-open" : "add-modal-closed"}
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSuccess={() => fetchData()}
       />
 
       <EditMediaModal
+        key={selectedEditItem ? `edit-${selectedEditItem.id}` : "edit-closed"}
         item={selectedEditItem}
         isOpen={Boolean(selectedEditItem)}
         onClose={() => setSelectedEditItem(null)}

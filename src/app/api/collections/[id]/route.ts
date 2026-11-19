@@ -33,6 +33,11 @@ export async function GET(
       where: { id, userId },
       include: {
         items: {
+          where: {
+            userMedia: {
+              userId,
+            },
+          },
           include: {
             userMedia: true,
           },

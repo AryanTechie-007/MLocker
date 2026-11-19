@@ -273,6 +273,50 @@ describe("Security & Tenant Isolation Regression Suite", () => {
       });
       expect(joinRecord).not.toBeNull();
     });
+
+    it("ensures a malicious pre-existing cross-user relationship cannot leak User B's media during read queries (Item 2)", async () => {
+      // Simulate a malicious or corrupt pre-existing link in the DB
+      const maliciousJoin = await prisma.collectionItem.create({
+        data: {
+          collectionId: userACollection.id,
+          userMediaId: userBMedia.id,
+          order: 999,
+        },
+      });
+
+      try {
+        currentMockUserId = userA.id; // Alice reads her collection
+
+        // 1. Verify GET /api/collections/[id] filters out Bob's media
+        const reqById = new Request(`http://localhost:3000/api/collections/${userACollection.id}`);
+        const resById = await getCollectionById(reqById, {
+          params: Promise.resolve({ id: userACollection.id }),
+        });
+        expect(resById.status).toBe(200);
+        const dataById = await resById.json();
+
+        const leakedInSingle = dataById.collection.items.some(
+          (item: any) =>
+            item.userMediaId === userBMedia.id ||
+            item.userMedia?.title === "Bob's Confidential Anime"
+        );
+        expect(leakedInSingle).toBe(false);
+
+        // 2. Verify GET /api/collections filters out Bob's media
+        const resAll = await getCollections();
+        expect(resAll.status).toBe(200);
+        const dataAll = await resAll.json();
+        const aliceCollection = dataAll.collections.find((c: any) => c.id === userACollection.id);
+        const leakedInList = aliceCollection?.items.some(
+          (item: any) =>
+            item.userMediaId === userBMedia.id ||
+            item.userMedia?.title === "Bob's Confidential Anime"
+        );
+        expect(leakedInList).toBe(false);
+      } finally {
+        await prisma.collectionItem.delete({ where: { id: maliciousJoin.id } });
+      }
+    });
   });
 
   // Scenario 5: User A cannot modify User B's media

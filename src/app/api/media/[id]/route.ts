@@ -30,6 +30,11 @@ export async function GET(
       where: { id, userId },
       include: {
         collectionItems: {
+          where: {
+            collection: {
+              userId,
+            },
+          },
           include: {
             collection: true,
           },
