@@ -3,6 +3,7 @@ const path = require("path");
 const fs = require("fs");
 const http = require("http");
 const crypto = require("crypto");
+const { registerIpcHandlers, setupNavigationGuards } = require("./ipc-handlers");
 
 // Enforce single instance
 const gotTheLock = app.requestSingleInstanceLock();
@@ -206,27 +207,8 @@ function createMainWindow(targetUrl) {
     mainWindow.show();
   });
 
-  // Handle external links safely
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith("http:") || url.startsWith("https:")) {
-      shell.openExternal(url);
-      return { action: "deny" };
-    }
-    return { action: "allow" };
-  });
-
-  mainWindow.webContents.on("will-navigate", (event, url) => {
-    try {
-      const parsed = new URL(url);
-      const appOrigin = new URL(currentAppUrl).origin;
-      if (parsed.origin !== appOrigin) {
-        event.preventDefault();
-        shell.openExternal(url);
-      }
-    } catch {
-      // internal navigation
-    }
-  });
+  // Establish strict navigation and window-open guards (Milestone 1.2)
+  setupNavigationGuards(mainWindow, targetUrl, shell);
 
   mainWindow.loadURL(targetUrl);
 
@@ -306,7 +288,6 @@ function setupMenu() {
 }
 
 // IPC Handlers
-const { registerIpcHandlers } = require("./ipc-handlers");
 registerIpcHandlers(ipcMain, shell, app);
 
 // Second instance focus

@@ -1,6 +1,6 @@
 /**
- * Electron IPC Handlers for Media Locker
- * Hardened against protocol injection and malformed IPC inputs.
+ * Electron Security & Navigation Handlers for Media Locker
+ * Hardened against protocol injection, unauthorized window creation, and malformed inputs.
  */
 
 /**
@@ -35,6 +35,59 @@ function handleGetAppVersion(app) {
 }
 
 /**
+ * Hardened window.open handler (webContents.setWindowOpenHandler).
+ * Never permits untrusted or arbitrary child BrowserWindow instances ({ action: "deny" }).
+ * If the target URL is valid HTTP/HTTPS, safely delegates to the system browser via shell.openExternal.
+ * Rejects file://, javascript:, data:, and unrecognized schemes without opening windows.
+ */
+function handleWindowOpen(details, shell) {
+  const url = details?.url;
+  if (typeof url === "string") {
+    handleOpenExternal(shell, url);
+  }
+  return { action: "deny" };
+}
+
+/**
+ * Hardened in-window navigation handler (webContents.on("will-navigate")).
+ * Strictly permits navigation only within the application's origin (e.g. Next.js internal pages).
+ * For external navigation:
+ * - Always calls event.preventDefault() to prevent in-app navigation to untrusted content.
+ * - If the protocol is HTTP or HTTPS, delegates to the default system browser via handleOpenExternal.
+ * - Strictly denies file://, javascript:, data:, custom protocols, and malformed URLs.
+ */
+function handleWillNavigate(event, navigationUrl, appOrigin, shell) {
+  if (typeof navigationUrl !== "string") {
+    if (event && typeof event.preventDefault === "function") event.preventDefault();
+    return { allowed: false, reason: "invalid_type" };
+  }
+
+  try {
+    const parsed = new URL(navigationUrl.trim());
+    const expectedOrigin = new URL(appOrigin).origin;
+
+    // Legitimate internal application navigation
+    if (parsed.origin === expectedOrigin) {
+      return { allowed: true, reason: "internal" };
+    }
+
+    // External navigation: cancel in-window navigation
+    if (event && typeof event.preventDefault === "function") event.preventDefault();
+
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      handleOpenExternal(shell, parsed.href);
+      return { allowed: false, reason: "external_opened" };
+    }
+
+    // Blocked protocol
+    return { allowed: false, reason: "blocked_protocol" };
+  } catch {
+    if (event && typeof event.preventDefault === "function") event.preventDefault();
+    return { allowed: false, reason: "malformed_url" };
+  }
+}
+
+/**
  * Registers all IPC handlers with ipcMain.
  */
 function registerIpcHandlers(ipcMain, shell, app) {
@@ -42,8 +95,26 @@ function registerIpcHandlers(ipcMain, shell, app) {
   ipcMain.handle("get-app-version", () => handleGetAppVersion(app));
 }
 
+/**
+ * Attaches hardened navigation and window open handlers to a BrowserWindow instance.
+ */
+function setupNavigationGuards(browserWindow, appOrigin, shell) {
+  if (!browserWindow || !browserWindow.webContents) return;
+
+  browserWindow.webContents.setWindowOpenHandler((details) => {
+    return handleWindowOpen(details, shell);
+  });
+
+  browserWindow.webContents.on("will-navigate", (event, url) => {
+    handleWillNavigate(event, url, appOrigin, shell);
+  });
+}
+
 module.exports = {
   handleOpenExternal,
   handleGetAppVersion,
+  handleWindowOpen,
+  handleWillNavigate,
   registerIpcHandlers,
+  setupNavigationGuards,
 };
