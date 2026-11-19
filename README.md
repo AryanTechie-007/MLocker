@@ -6,15 +6,15 @@ A high-performance dark glassmorphism application to track Movies, TV Shows, Ani
 
 ## Features
 
-- **6 Supported Media Types**: Movies (iTunes Search), TV Shows (TVMaze), Anime (Jikan API), Manga (Jikan API), Novels/Books (Open Library), and Video Games (Steam API & manual).
+- **6 Supported Media Types**: Movies (TMDb / iTunes Search), TV Shows (TMDb / TVMaze), Anime (TMDb / Kitsu API), Manga (Kitsu API), Novels/Books (Open Library), and Video Games (Steam API & manual).
 - **Desktop Application (Electron)**: Dedicated Electron shell with single-instance lock and system menu integration.
-- **Zero API Keys Required**: Seamlessly integrates with open, free public APIs without requiring third-party developer tokens.
+- **Zero API Keys Required**: Seamlessly integrates with open, free public APIs without requiring third-party developer tokens (TMDb optional for expanded movie/TV/anime metadata).
 - **Interactive In-Progress Shelf**: One-click quick steppers (`+1 Ep`, `+1 Ch`, `+1h`) on the command center dashboard with auto-completion recognition.
 - **Analytics & Stats Intelligence**: Real-time media type distribution bars, score statistics, playtime summaries, and Hall of Fame showcase.
 - **Custom Collections & Curations**: Group media into curated sets (e.g. "Studio Ghibli Masterpieces", "Top Sci-Fi Novels").
-- **Universal Search & Fast Entry**: Live search across 5 APIs with instant additions directly to your library.
+- **Universal Search & Fast Entry**: Live search across 6 media categories with instant additions directly to your library.
 - **Shared Local SQLite Database**: Local SQLite database via Prisma ORM (`prisma/dev.db`).
-- **Flexible Auth**: NextAuth v5 credentials with secure bcrypt hashing and guest mode fallback for immediate local testing.
+- **Secure Auth**: NextAuth v5 credentials with secure bcrypt password hashing and strict relational tenant isolation.
 
 ---
 
@@ -23,7 +23,7 @@ A high-performance dark glassmorphism application to track Movies, TV Shows, Ani
 - **Web Framework**: Next.js 16 (App Router + Webpack)
 - **Desktop Shell**: Electron 45 + Electron Builder
 - **Database**: SQLite via Prisma Client 6
-- **Auth**: NextAuth v5 (Credentials with bcrypt + guest fallback)
+- **Auth**: NextAuth v5 (Credentials with bcrypt)
 - **Data Visualization**: Recharts
 - **Styling**: Vanilla CSS + Glassmorphism Design Tokens
 

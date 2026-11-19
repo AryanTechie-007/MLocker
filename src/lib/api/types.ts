@@ -12,7 +12,7 @@ export type ExternalSource =
   | "steam"
   | "crunchyroll"
   | "kitsu"
-  | "jikan"
+  | "jikan" // Preserved for backward compatibility with existing records; active anime/manga provider is kitsu
   | "itunes"
   | "tvmaze"
   | "openlibrary"

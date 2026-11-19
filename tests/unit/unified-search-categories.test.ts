@@ -217,12 +217,25 @@ describe("Unified Search: Six Media Categories & Resilience", () => {
   });
 
   describe("Anime Search: TMDb Primary with Kitsu Fallback", () => {
-    it("uses TMDb anime search when TMDB_API_KEY is present and TMDb returns results", async () => {
+    it("uses TMDb anime search when TMDB_API_KEY is present and TMDb returns classified anime results", async () => {
       const results = await searchMedia("Attack on Titan", "anime");
       expect(tmdb.searchTMDBAnime).toHaveBeenCalledWith("Attack on Titan");
       expect(kitsu.searchAnime).not.toHaveBeenCalled();
       expect(results[0].externalSource).toBe("tmdb");
       expect(results[0].title).toBe("Attack on Titan");
+      expect(results[0].mediaType).toBe("anime");
+    });
+
+    it("falls back to Kitsu when TMDb returns ordinary non-anime results (classifier yields 0 matches)", async () => {
+      // TMDb anime search returns [] because query produces only ordinary TV/movie results (e.g. "The Office")
+      vi.mocked(tmdb.searchTMDBAnime).mockResolvedValue([]);
+
+      const results = await searchMedia("The Office", "anime");
+      expect(tmdb.searchTMDBAnime).toHaveBeenCalledWith("The Office");
+      expect(kitsu.searchAnime).toHaveBeenCalledWith("The Office");
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].externalSource).toBe("kitsu");
+      expect(results.every((r) => r.mediaType === "anime")).toBe(true);
     });
 
     it("falls back to Kitsu anime search when TMDB_API_KEY is missing", async () => {
@@ -233,6 +246,7 @@ describe("Unified Search: Six Media Categories & Resilience", () => {
       expect(kitsu.searchAnime).toHaveBeenCalledWith("Attack on Titan");
       expect(results[0].externalSource).toBe("kitsu");
       expect(results[0].title).toBe("Attack on Titan (Kitsu)");
+      expect(results[0].mediaType).toBe("anime");
     });
 
     it("falls back to Kitsu anime search when TMDb returns empty array", async () => {
@@ -243,6 +257,7 @@ describe("Unified Search: Six Media Categories & Resilience", () => {
       expect(kitsu.searchAnime).toHaveBeenCalledWith("Attack on Titan");
       expect(results[0].externalSource).toBe("kitsu");
       expect(results[0].title).toBe("Attack on Titan (Kitsu)");
+      expect(results[0].mediaType).toBe("anime");
     });
 
     it("falls back to Kitsu anime search when TMDb throws an error", async () => {
@@ -253,6 +268,7 @@ describe("Unified Search: Six Media Categories & Resilience", () => {
       expect(kitsu.searchAnime).toHaveBeenCalledWith("Attack on Titan");
       expect(results.length).toBe(1);
       expect(results[0].externalSource).toBe("kitsu");
+      expect(results[0].mediaType).toBe("anime");
     });
 
     it("returns empty array gracefully when both TMDb and Kitsu fail", async () => {
@@ -261,6 +277,17 @@ describe("Unified Search: Six Media Categories & Resilience", () => {
 
       const results = await searchMedia("Attack on Titan", "anime");
       expect(results).toEqual([]);
+    });
+
+    it("ensures no ordinary movie or TV result is returned with mediaType 'anime'", async () => {
+      // When TMDb anime classifier finds no matches, TMDb anime returns []
+      vi.mocked(tmdb.searchTMDBAnime).mockResolvedValue([]);
+      // If Kitsu also has no results for an ordinary query
+      vi.mocked(kitsu.searchAnime).mockResolvedValue([]);
+
+      const results = await searchMedia("Ordinary Non Anime Movie", "anime");
+      expect(results).toEqual([]);
+      expect(results.some((r) => r.mediaType === "movie" || r.mediaType === "tv")).toBe(false);
     });
   });
 

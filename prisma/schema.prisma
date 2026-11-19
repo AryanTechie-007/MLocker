@@ -26,7 +26,7 @@ model UserMedia {
   // Media identification
   mediaType       String          // "movie" | "tv" | "anime" | "manga" | "game" | "novel"
   externalId      String?
-  externalSource  String?         // "jikan" | "itunes" | "tvmaze" | "openlibrary" | "manual"
+  externalSource  String?         // Active: "kitsu", "tmdb", "steam", "itunes", "tvmaze", "openlibrary", "manual". Legacy stored: "jikan"
   title           String
   posterUrl       String?
   year            Int?

@@ -136,12 +136,12 @@ VERIFICATION:
 - Update Milestone 2 in `implementation-plan.md`.
 ```
 
-### Milestone 3: Six Media Categories [COMPLETE]
+### Milestone 3: Six Media Categories [IN REVIEW / AWAITING VERIFICATION]
 
-**Status:** Complete  
-**Date of Completion:** November 19, 2026  
+**Status:** In Review / Awaiting Verification  
 **Audit Report:** [`test-results/milestone-3-six-category-audit.md`](file:///test-results/milestone-3-six-category-audit.md)  
-All six media categories (Movies, TV Shows, Anime, Manga, Games, Novels/Books) are fully integrated across providers (TMDb, iTunes, TVMaze, Kitsu, Steam, Open Library), unified search, manual entry modal, library navigation, category filtering, and legal storefront links. Tested with 18 suites and 191 automated tests passing (0 failures).
+**Implementation Report:** [`test-results/milestone-3-implementation-report.md`](file:///test-results/milestone-3-implementation-report.md)  
+All six media categories (Movies, TV Shows, Anime, Manga, Games, Novels/Books) are integrated across providers (TMDb, iTunes, TVMaze, Kitsu, Steam, Open Library), unified search, manual entry modal, library navigation, category filtering, and legal storefront links. Anime classification defect corrected: strict classifier applied without ordinary movie/TV fallback. Tested with 19 suites and 201 automated tests passing (0 failures). Milestone 4 remains unstarted pending review.
 
 ---
 

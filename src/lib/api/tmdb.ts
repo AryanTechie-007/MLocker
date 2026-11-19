@@ -299,17 +299,35 @@ export async function fetchWatchProviders(
   }
 }
 
-function checkIsAnime(
+export function checkIsAnime(
   title: string,
   overview: string = "",
   genreIds: number[] = [],
   originalLanguage?: string
 ): boolean {
-  if (originalLanguage === "ja") return true;
-  if (genreIds.includes(16)) {
-    if (/anime|manga|japan|studio|trigger|mappa|ufotable|wit|toei|ghibli/i.test(overview)) return true;
-    if (/edgerunners|dungeon meshi|cyberpunk/i.test(title)) return true;
+  const hasAnimationGenre = (genreIds || []).includes(16);
+  const isJapanese = originalLanguage === "ja";
+  const text = `${title} ${overview}`;
+
+  // Confident Japanese Animation (e.g. Attack on Titan, Spirited Away)
+  if (hasAnimationGenre && isJapanese) return true;
+
+  // Animation with explicit anime studio or franchise keywords
+  if (hasAnimationGenre) {
+    if (
+      /\b(anime|manga|light novel)\b/i.test(text) ||
+      /\b(trigger|mappa|ufotable|wit studio|toei animation|ghibli|bones|madhouse|pierrot|cloverworks|kyoto animation|a-1 pictures)\b/i.test(text)
+    ) {
+      return true;
+    }
+    if (/edgerunners|dungeon meshi/i.test(title)) return true;
   }
+
+  // Explicit anime/manga mention in title or overview for Japanese language
+  if (isJapanese && /\b(anime|manga|light novel|ova|ona)\b/i.test(text)) {
+    return true;
+  }
+
   return false;
 }
 
@@ -351,7 +369,7 @@ export async function searchTMDBMovies(query: string): Promise<MediaSearchResult
         return {
           externalId: String(item.id),
           externalSource: "tmdb" as const,
-          mediaType: isAnime ? ("anime" as const) : ("movie" as const),
+          mediaType: "movie" as const,
           title: item.title,
           posterUrl: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : null,
           year,
@@ -408,7 +426,7 @@ export async function searchTMDBTV(query: string): Promise<MediaSearchResult[]> 
         return {
           externalId: String(item.id),
           externalSource: "tmdb" as const,
-          mediaType: isAnime ? ("anime" as const) : ("tv" as const),
+          mediaType: "tv" as const,
           title: item.name,
           posterUrl: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : null,
           year,
@@ -462,9 +480,15 @@ export async function searchTMDBAnime(query: string): Promise<MediaSearchResult[
     const filteredTv = tvItems.filter(isAnimeTv);
     const filteredMovies = movieItems.filter(isAnimeMovie);
 
-    // Fall back to top results if strict filter caught nothing
-    const candidateTv = filteredTv.length > 0 ? filteredTv.slice(0, 8) : tvItems.slice(0, 5);
-    const candidateMovies = filteredMovies.length > 0 ? filteredMovies.slice(0, 4) : movieItems.slice(0, 3);
+    // Only return results that pass the anime classification logic.
+    // If TMDb produces no confidently classified anime results, return an empty
+    // result set so unified search invokes Kitsu automatically.
+    const candidateTv = filteredTv.slice(0, 8);
+    const candidateMovies = filteredMovies.slice(0, 4);
+
+    if (candidateTv.length === 0 && candidateMovies.length === 0) {
+      return [];
+    }
 
     const processedTv = await Promise.all(
       candidateTv.map(async (item) => {
