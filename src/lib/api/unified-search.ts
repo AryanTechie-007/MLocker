@@ -4,7 +4,7 @@ import { searchTMDBMovies, searchTMDBTV, searchTMDBAnime } from "./tmdb";
 import { searchGames } from "./steam";
 import { MediaSearchResult, MediaType } from "./types";
 
-function normalizeString(str: string): string {
+export function normalizeString(str: string): string {
   return (str || "")
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ")
@@ -12,7 +12,7 @@ function normalizeString(str: string): string {
     .trim();
 }
 
-function calculateScore(item: MediaSearchResult, query: string): number {
+export function calculateScore(item: MediaSearchResult, query: string): number {
   const cleanTitle = normalizeString(item.title);
   const cleanQuery = normalizeString(query);
 
@@ -109,7 +109,7 @@ export async function searchMedia(
   return sortAndDeduplicate([...movies, ...tvShows, ...anime, ...games], trimmed);
 }
 
-function sortAndDeduplicate(
+export function sortAndDeduplicate(
   items: MediaSearchResult[],
   query: string
 ): MediaSearchResult[] {
