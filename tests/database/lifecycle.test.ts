@@ -374,14 +374,19 @@ describe("Milestone 2: Database Lifecycle & SQLite Migration Suite", () => {
   // 10. Startup failure handling
   describe("10. Startup Failure Handling", () => {
     it("fails closed with DatabaseLifecycleError when database path is invalid or un-writable", () => {
+      // Create a regular file to serve as a non-directory blocker across Windows & Linux
+      const blockerFile = path.join(tempDir, "blocker-file.txt");
+      fs.writeFileSync(blockerFile, "blocker");
+      const unWritablePath = path.join(blockerFile, "subfolder", "db.sqlite");
+
       const mockApp = {
         isPackaged: true,
-        getPath: () => "Z:\\non-existent-drive-path\\directory",
+        getPath: () => tempDir,
       };
 
       expect(() => {
         initializeDatabase(mockApp, {
-          explicitPath: "Z:\\non-existent-drive-path\\db.sqlite",
+          explicitPath: unWritablePath,
           logger: () => {},
         });
       }).toThrowError(DatabaseLifecycleError);
