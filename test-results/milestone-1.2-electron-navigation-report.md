@@ -107,6 +107,7 @@ In `electron/ipc-handlers.js`, `handleWillNavigate()` previously evaluated `pars
 
 ## 6. Verification Metadata
 - **Milestone 1.2 Base Commit:** [`c208385ec85e5757217b2afe1e89fbebb693563f`](https://github.com/AryanTechie-007/MLocker/commit/c208385ec85e5757217b2afe1e89fbebb693563f)
-- **Milestone 1.2.1 Follow-up Commit:** Pending push
-- **Total Test Count:** 93 passing tests across 8 suites
-- **CI Status:** Verified on push to `main`
+- **Milestone 1.2.1 Follow-up Commit:** [`856538c42f6a46039ae0db6edf8c7b72b2f4d0fe`](https://github.com/AryanTechie-007/MLocker/commit/856538c42f6a46039ae0db6edf8c7b72b2f4d0fe)
+- **Total Test Count:** 93 passing tests across 8 suites (including 20 Electron navigation tests)
+- **GitHub Actions CI Run:** [44525905345](https://github.com/AryanTechie-007/MLocker/actions/runs/44525905345)
+- **CI Conclusion:** **`success`** (All 93 tests, lint, tsc, and Next.js build passed on Ubuntu)
