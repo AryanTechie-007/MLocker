@@ -5,7 +5,13 @@
 
 const fs = require("fs");
 const path = require("path");
-const { DatabaseSync } = require("node:sqlite");
+
+let DatabaseSync = null;
+try {
+  DatabaseSync = require("node:sqlite").DatabaseSync;
+} catch {
+  // Handled if runtime lacks node:sqlite
+}
 const { getSchemaVersion, runMigrations, MigrationError } = require("./migrator");
 const {
   createDatabaseBackup,
@@ -141,6 +147,13 @@ function initializeDatabase(app, options = {}) {
   }
 
   // Open database connection for setup, WAL enablement, and migrations
+  if (!DatabaseSync) {
+    throw new DatabaseLifecycleError(
+      "node:sqlite is unavailable in this runtime. Node.js >= 22.5.0 or Electron is required.",
+      { dbPath }
+    );
+  }
+
   let db;
   try {
     db = new DatabaseSync(dbPath);

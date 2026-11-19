@@ -5,13 +5,27 @@
 
 const fs = require("fs");
 const path = require("path");
-const { DatabaseSync } = require("node:sqlite");
+
+let DatabaseSync = null;
+try {
+  DatabaseSync = require("node:sqlite").DatabaseSync;
+} catch {
+  // Gracefully handled if running on Node runtime without node:sqlite
+}
 
 class BackupError extends Error {
   constructor(message, details = {}) {
     super(message);
     this.name = "BackupError";
     this.details = details;
+  }
+}
+
+function assertSQLiteAvailable() {
+  if (!DatabaseSync) {
+    throw new BackupError(
+      "node:sqlite is unavailable in this runtime. Node.js >= 22.5.0 or Electron is required."
+    );
   }
 }
 
@@ -36,7 +50,7 @@ function isSQLiteHeaderValid(filePath) {
  * are flushed into the primary database file.
  */
 function checkpointDatabase(dbPath) {
-  if (!fs.existsSync(dbPath)) return;
+  if (!fs.existsSync(dbPath) || !DatabaseSync) return;
   try {
     const db = new DatabaseSync(dbPath);
     db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
@@ -57,6 +71,10 @@ function verifyDatabaseIntegrity(dbPath) {
 
   if (!isSQLiteHeaderValid(dbPath)) {
     return { ok: false, errors: ["Invalid SQLite header magic string"] };
+  }
+
+  if (!DatabaseSync) {
+    return { ok: false, errors: ["node:sqlite is unavailable in this runtime"] };
   }
 
   try {
