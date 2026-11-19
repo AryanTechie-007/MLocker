@@ -153,5 +153,17 @@ Packaging was executed via `electron-builder --dir` producing `dist/win-unpacked
 
 ## 7. Version Control & CI Information
 
-- **Pushed Commit SHA:** `[PENDING PUSH]`
-- **GitHub Actions Run:** `[PENDING RUN]`
+- **Pushed Commit SHA:** `fc8f6b376c1f6a9404aae30d42ea6011b9ff0aac`
+- **GitHub Actions Run ID:** `44545966737`
+- **GitHub Actions Run URL:** [https://github.com/AryanTechie-007/MLocker/actions/runs/44545966737](https://github.com/AryanTechie-007/MLocker/actions/runs/44545966737)
+- **Job Conclusion:** `success`
+- **Verified Job Steps:**
+  1. `Set up job` — success
+  2. `Check out repository` — success
+  3. `Set up Node.js 24` — success
+  4. `Install dependencies` (`npm ci`) — success
+  5. `Generate Prisma client & apply SQLite migrations` (`npx prisma generate && npx prisma migrate deploy`) — success
+  6. `Type check` (`npx tsc --noEmit`) — success
+  7. `Lint` (`npm run lint`) — success
+  8. `Run tests` (`npm test`, 133 tests across 14 suites) — success
+  9. `Build Next.js` (`npm run build`) — success
