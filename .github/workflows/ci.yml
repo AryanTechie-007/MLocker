@@ -29,10 +29,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate Prisma client & provision SQLite schema
+      - name: Generate Prisma client & apply SQLite migrations
         run: |
           npx prisma generate
-          npx prisma db push
+          npx prisma migrate deploy
 
       - name: Type check
         run: npx tsc --noEmit

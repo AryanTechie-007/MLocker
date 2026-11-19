@@ -57,12 +57,6 @@
       "prisma/**/*",
       "node_modules/.prisma/**/*"
     ],
-    "extraResources": [
-      {
-        "from": "prisma/dev.db",
-        "to": "dev.db"
-      }
-    ],
     "win": {
       "target": "nsis",
       "icon": "electron/assets/icon.ico"

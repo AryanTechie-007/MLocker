@@ -4,6 +4,7 @@ const fs = require("fs");
 const http = require("http");
 const crypto = require("crypto");
 const { registerIpcHandlers, setupNavigationGuards } = require("./ipc-handlers");
+const { initializeDatabase, shutdownDatabase } = require("./database");
 
 // Enforce single instance
 const gotTheLock = app.requestSingleInstanceLock();
@@ -16,56 +17,16 @@ const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 let mainWindow = null;
 let nextServer = null;
 let currentAppUrl = null;
+let databaseConfig = null;
 
 /**
- * Ensures SQLite database exists in a writable location and sets DATABASE_URL
+ * Initializes SQLite database lifecycle, WAL configuration, and migrations
  */
 function setupDatabase() {
-  const userDataPath = app.getPath("userData");
-  if (!fs.existsSync(userDataPath)) {
-    fs.mkdirSync(userDataPath, { recursive: true });
-  }
-
-  const targetDbPath = path.join(userDataPath, "dev.db");
-
-  if (app.isPackaged) {
-    if (!fs.existsSync(targetDbPath)) {
-      // Look for bundled template database
-      const candidates = [
-        path.join(process.resourcesPath, "dev.db"),
-        path.join(process.resourcesPath, "prisma", "dev.db"),
-        path.join(process.resourcesPath, "app", "prisma", "dev.db"),
-        path.join(__dirname, "..", "prisma", "dev.db"),
-      ];
-
-      let copied = false;
-      for (const candidate of candidates) {
-        if (fs.existsSync(candidate)) {
-          try {
-            fs.copyFileSync(candidate, targetDbPath);
-            copied = true;
-            console.log(`[Media Locker] Copied template DB from ${candidate} to ${targetDbPath}`);
-            break;
-          } catch (err) {
-            console.error(`[Media Locker] Error copying candidate DB:`, err);
-          }
-        }
-      }
-
-      if (!copied) {
-        console.log(`[Media Locker] No starter DB found, SQLite will create a new file at ${targetDbPath}`);
-      }
-    }
-
-    process.env.DATABASE_URL = `file:${targetDbPath}`;
-  } else {
-    // In local dev, use the project's prisma/dev.db
-    if (!process.env.DATABASE_URL) {
-      process.env.DATABASE_URL = `file:${path.resolve(__dirname, "..", "prisma", "dev.db")}`;
-    }
-  }
-
-  console.log(`[Media Locker] Database configured: ${process.env.DATABASE_URL}`);
+  databaseConfig = initializeDatabase(app, {
+    logger: (msg) => console.log(msg),
+  });
+  console.log(`[Media Locker] Database configured: ${databaseConfig.dbUrl} (version: ${databaseConfig.version})`);
 }
 
 /**
@@ -300,7 +261,14 @@ app.on("second-instance", () => {
 
 // Application startup
 app.whenReady().then(async () => {
-  setupDatabase();
+  try {
+    setupDatabase();
+  } catch (err) {
+    console.error("[Media Locker] Fatal: Failed to initialize database:", err);
+    app.quit();
+    return;
+  }
+
   setupMenu();
 
   try {
@@ -341,6 +309,15 @@ app.on("before-quit", () => {
       console.log("[Media Locker] Next.js server closed.");
     } catch (err) {
       console.error("[Media Locker] Error closing server:", err);
+    }
+  }
+
+  if (databaseConfig && databaseConfig.dbPath) {
+    try {
+      shutdownDatabase(databaseConfig.dbPath);
+      console.log("[Media Locker] Database WAL checkpointed successfully on shutdown.");
+    } catch (err) {
+      console.error("[Media Locker] Error checkpointing database on shutdown:", err);
     }
   }
 });

@@ -320,20 +320,20 @@ Work in small pull requests. Each milestone must be reviewed and tested before t
 - Invalid payloads return safe 4xx responses.
 - No secret is required to be committed to the repository.
 
-### Milestone 2 — Database and desktop reliability
+### Milestone 2 — Database and desktop reliability [COMPLETE]
 **Tasks**
-- Add Prisma migrations for all supported environments.
-- Move desktop database storage to Electron's user-data directory.
-- Implement first-launch database creation and migration.
-- Handle migration failure with a safe, actionable error.
-- Verify packaged application includes required Prisma engine/runtime assets.
-- Test clean installation, upgrade, restart and backup/restore on a machine without a development database.
+- [x] Add Prisma migrations for all supported environments (`prisma/migrations/20261119000000_init`).
+- [x] Move desktop database storage to Electron's user-data directory (`app.getPath('userData')`).
+- [x] Implement first-launch database creation and migration via zero-CLI embedded migrator.
+- [x] Handle migration failure with atomic transaction rollback and automatic backup restoration.
+- [x] Verify packaged application includes required Prisma engine/runtime assets (`node_modules/.prisma/**/*`).
+- [x] Test clean installation, upgrade, restart and backup/restore on a machine without a development database.
 
 **Acceptance criteria**
-- A clean desktop install creates a usable database.
-- Existing user data survives an application upgrade.
-- The application does not depend on a developer's local `prisma/dev.db`.
-- Database migration and recovery steps are documented.
+- [x] A clean desktop install creates a usable database.
+- [x] Existing user data survives an application upgrade.
+- [x] The application does not depend on a developer's local `prisma/dev.db`.
+- [x] Database migration and recovery steps are documented in `test-results/milestone-2-database-report.md`.
 
 ### Milestone 3 — Six media categories
 **Tasks**
