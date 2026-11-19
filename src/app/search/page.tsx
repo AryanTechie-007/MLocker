@@ -8,6 +8,8 @@ import {
   Tv,
   Gamepad2,
   Sparkles,
+  BookMarked,
+  BookOpen,
   Plus,
   Star,
   Layers,
@@ -33,7 +35,9 @@ export default function SearchPage() {
     { type: "movie", label: "Movies", icon: Film },
     { type: "tv", label: "TV Shows", icon: Tv },
     { type: "anime", label: "Anime", icon: Sparkles },
+    { type: "manga", label: "Manga", icon: BookMarked },
     { type: "game", label: "Games", icon: Gamepad2 },
+    { type: "novel", label: "Novels & Books", icon: BookOpen },
   ];
 
   const handleSearch = useCallback(async (searchQuery = query, searchType = activeType) => {
@@ -81,7 +85,7 @@ export default function SearchPage() {
           Universal <span className="gradient-text">Search & Explore</span>
         </h1>
         <p style={{ color: "var(--text-muted)", fontSize: "0.98rem" }}>
-          Search movies, TV shows, anime, and games with direct links to Crunchyroll, Netflix, Prime Video, Disney+, Steam, and Epic Games.
+          Search movies, TV shows, anime, manga, games, and novels/books with direct links to streaming, reading, and gaming storefronts.
         </p>
       </div>
 
@@ -156,9 +160,10 @@ export default function SearchPage() {
                 <button
                   key={cat.type}
                   onClick={() => {
-                    setActiveType(cat.type);
-                    if (cat.type === "game") {
-                      setIsManualModalOpen(true);
+                    const newType = cat.type;
+                    setActiveType(newType);
+                    if (query.trim().length >= 2) {
+                      handleSearch(query, newType);
                     }
                   }}
                   style={{
@@ -318,7 +323,7 @@ export default function SearchPage() {
                             borderRadius: "4px",
                           }}
                         >
-                          {item.mediaType}
+                          {item.mediaType === "novel" ? "Novel / Book" : item.mediaType}
                         </span>
                         {item.year && (
                           <span

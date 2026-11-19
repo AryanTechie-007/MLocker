@@ -2,6 +2,8 @@ import { searchMovies } from "./itunes";
 import { searchTV } from "./tvmaze";
 import { searchTMDBMovies, searchTMDBTV, searchTMDBAnime } from "./tmdb";
 import { searchGames } from "./steam";
+import { searchAnime as searchKitsuAnime, searchManga as searchKitsuManga } from "./kitsu";
+import { searchBooks as searchOpenLibraryBooks } from "./openLibrary";
 import { MediaSearchResult, MediaType } from "./types";
 
 export function normalizeString(str: string): string {
@@ -59,54 +61,131 @@ export function calculateScore(item: MediaSearchResult, query: string): number {
 
 async function getMovies(query: string): Promise<MediaSearchResult[]> {
   if (process.env.TMDB_API_KEY) {
-    const tmdb = await searchTMDBMovies(query);
-    if (tmdb.length > 0) return tmdb;
+    try {
+      const tmdb = await searchTMDBMovies(query);
+      if (tmdb && tmdb.length > 0) return tmdb;
+    } catch (err) {
+      console.error("TMDB Movie Search Error, falling back to iTunes:", err);
+    }
   }
-  return searchMovies(query);
+  try {
+    return await searchMovies(query);
+  } catch (err) {
+    console.error("iTunes Movie Search Error:", err);
+    return [];
+  }
 }
 
 async function getTVShows(query: string): Promise<MediaSearchResult[]> {
   if (process.env.TMDB_API_KEY) {
-    const tmdb = await searchTMDBTV(query);
-    if (tmdb.length > 0) return tmdb;
+    try {
+      const tmdb = await searchTMDBTV(query);
+      if (tmdb && tmdb.length > 0) return tmdb;
+    } catch (err) {
+      console.error("TMDB TV Search Error, falling back to TVMaze:", err);
+    }
   }
-  return searchTV(query);
+  try {
+    return await searchTV(query);
+  } catch (err) {
+    console.error("TVMaze Search Error:", err);
+    return [];
+  }
+}
+
+async function getAnime(query: string): Promise<MediaSearchResult[]> {
+  // Decision 3: TMDb is primary, Kitsu is fallback
+  if (process.env.TMDB_API_KEY) {
+    try {
+      const tmdb = await searchTMDBAnime(query);
+      if (tmdb && tmdb.length > 0) return tmdb;
+    } catch (err) {
+      console.error("TMDB Anime Search Error, falling back to Kitsu:", err);
+    }
+  }
+  try {
+    return await searchKitsuAnime(query);
+  } catch (err) {
+    console.error("Kitsu Anime Search Error:", err);
+    return [];
+  }
+}
+
+async function getManga(query: string): Promise<MediaSearchResult[]> {
+  try {
+    return await searchKitsuManga(query);
+  } catch (err) {
+    console.error("Kitsu Manga Search Error:", err);
+    return [];
+  }
+}
+
+async function getGamesSafe(query: string): Promise<MediaSearchResult[]> {
+  try {
+    return await searchGames(query);
+  } catch (err) {
+    console.error("Steam Game Search Error:", err);
+    return [];
+  }
+}
+
+async function getNovels(query: string): Promise<MediaSearchResult[]> {
+  try {
+    return await searchOpenLibraryBooks(query);
+  } catch (err) {
+    console.error("Open Library Book Search Error:", err);
+    return [];
+  }
 }
 
 export async function searchMedia(
   query: string,
-  type?: MediaType | "all"
+  type?: MediaType | "book" | "all"
 ): Promise<MediaSearchResult[]> {
   if (!query || query.trim().length === 0) return [];
 
   const trimmed = query.trim();
+  const normalizedType = type === "book" ? "novel" : type;
 
-  if (type === "movie") {
+  if (normalizedType === "movie") {
     const movies = await getMovies(trimmed);
     return sortAndDeduplicate(movies, trimmed);
   }
-  if (type === "tv") {
+  if (normalizedType === "tv") {
     const tv = await getTVShows(trimmed);
     return sortAndDeduplicate(tv, trimmed);
   }
-  if (type === "anime") {
-    const anime = await searchTMDBAnime(trimmed);
+  if (normalizedType === "anime") {
+    const anime = await getAnime(trimmed);
     return sortAndDeduplicate(anime, trimmed);
   }
-  if (type === "game") {
-    const games = await searchGames(trimmed);
+  if (normalizedType === "manga") {
+    const manga = await getManga(trimmed);
+    return sortAndDeduplicate(manga, trimmed);
+  }
+  if (normalizedType === "game") {
+    const games = await getGamesSafe(trimmed);
     return sortAndDeduplicate(games, trimmed);
   }
+  if (normalizedType === "novel") {
+    const novels = await getNovels(trimmed);
+    return sortAndDeduplicate(novels, trimmed);
+  }
 
-  // Unified Search: Movies, TV Shows, Anime, and Games in parallel
-  const [movies, tvShows, anime, games] = await Promise.all([
+  // Unified Search: Movies, TV Shows, Anime, Manga, Games, and Novels in parallel
+  const [movies, tvShows, anime, manga, games, novels] = await Promise.all([
     getMovies(trimmed),
     getTVShows(trimmed),
-    searchTMDBAnime(trimmed),
-    searchGames(trimmed),
+    getAnime(trimmed),
+    getManga(trimmed),
+    getGamesSafe(trimmed),
+    getNovels(trimmed),
   ]);
 
-  return sortAndDeduplicate([...movies, ...tvShows, ...anime, ...games], trimmed);
+  return sortAndDeduplicate(
+    [...movies, ...tvShows, ...anime, ...manga, ...games, ...novels],
+    trimmed
+  );
 }
 
 export function sortAndDeduplicate(

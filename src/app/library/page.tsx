@@ -8,6 +8,8 @@ import {
   Tv,
   Sparkles,
   Gamepad2,
+  BookMarked,
+  BookOpen,
   LayoutGrid,
   List,
   Search,
@@ -26,7 +28,8 @@ import { UserMediaItem } from "@/lib/types";
 
 function LibraryContent() {
   const searchParams = useSearchParams();
-  const initialType = searchParams.get("type") || "all";
+  const rawType = searchParams.get("type") || "all";
+  const initialType = rawType === "book" ? "novel" : rawType;
   const initialStatus = searchParams.get("status") || "all";
 
   const [items, setItems] = useState<UserMediaItem[]>([]);
@@ -81,7 +84,9 @@ function LibraryContent() {
 
   // Filter & Sort Logic
   const filteredItems = items.filter((item) => {
-    if (activeType !== "all" && item.mediaType !== activeType) return false;
+    const itemType = (item.mediaType as string) === "book" ? "novel" : item.mediaType;
+    const currentActiveType = activeType === "book" ? "novel" : activeType;
+    if (currentActiveType !== "all" && itemType !== currentActiveType) return false;
     if (activeStatus !== "all" && item.status !== activeStatus) return false;
     if (filterFavorites && !item.isFavorite) return false;
     if (searchQuery.trim()) {
@@ -112,7 +117,9 @@ function LibraryContent() {
     { type: "movie", label: "Movies", icon: Film },
     { type: "tv", label: "TV Shows", icon: Tv },
     { type: "anime", label: "Anime", icon: Sparkles },
+    { type: "manga", label: "Manga", icon: BookMarked },
     { type: "game", label: "Games", icon: Gamepad2 },
+    { type: "novel", label: "Novels & Books", icon: BookOpen },
   ];
 
   const statusPills = [
@@ -187,7 +194,10 @@ function LibraryContent() {
         {categoryTabs.map((tab) => {
           const Icon = tab.icon;
           const isSelected = activeType === tab.type;
-          const count = items.filter((i) => tab.type === "all" || i.mediaType === tab.type).length;
+          const count = items.filter((i) => {
+            const iType = (i.mediaType as string) === "book" ? "novel" : i.mediaType;
+            return tab.type === "all" || iType === tab.type;
+          }).length;
           return (
             <button
               key={tab.type}
@@ -466,7 +476,7 @@ function LibraryContent() {
                   <td style={{ padding: "14px 16px", color: "var(--text-muted)", fontSize: "0.85rem" }}>
                     {item.mediaType === "game"
                       ? `${item.hoursPlayed || 0} hrs`
-                      : item.mediaType === "manga" || item.mediaType === "novel"
+                      : item.mediaType === "manga" || item.mediaType === "novel" || (item.mediaType as string) === "book"
                       ? `${item.readChapters || 0} / ${item.totalChapters || "?"} ch`
                       : `${item.watchedEpisodes || 0} / ${item.totalEpisodes || "?"} ep`}
                   </td>

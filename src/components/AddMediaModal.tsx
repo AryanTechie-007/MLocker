@@ -25,8 +25,15 @@ export default function AddMediaModal({
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
 
+  const resolveInitialType = (type?: string) => {
+    if (!type) return "movie";
+    return type === "book" ? "novel" : type;
+  };
+
   // Form State
-  const [mediaType, setMediaType] = useState(mediaItem?.mediaType || defaultType);
+  const [mediaType, setMediaType] = useState(
+    resolveInitialType(mediaItem?.mediaType || defaultType)
+  );
   const [title, setTitle] = useState(mediaItem?.title || "");
   const [posterUrl, setPosterUrl] = useState(mediaItem?.posterUrl || "");
   const [year, setYear] = useState(mediaItem?.year ? String(mediaItem.year) : "");
@@ -45,7 +52,7 @@ export default function AddMediaModal({
   const currentKey = `${mediaItem?.externalId || mediaItem?.title || "manual"}-${isOpen}`;
   if (isOpen && currentKey !== prevKey) {
     setPrevKey(currentKey);
-    setMediaType(mediaItem?.mediaType || defaultType);
+    setMediaType(resolveInitialType(mediaItem?.mediaType || defaultType));
     setTitle(mediaItem?.title || "");
     setPosterUrl(mediaItem?.posterUrl || "");
     setYear(mediaItem?.year ? String(mediaItem.year) : "");
@@ -76,7 +83,7 @@ export default function AddMediaModal({
             .filter(Boolean);
 
       const payload = {
-        mediaType,
+        mediaType: resolveInitialType(mediaType),
         externalId: mediaItem?.externalId || null,
         externalSource: mediaItem?.externalSource || "manual",
         title: title.trim(),
@@ -161,7 +168,7 @@ export default function AddMediaModal({
               {mediaItem ? "Add to Locker" : "Track New Media"}
             </h3>
             <p style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
-              {mediaItem ? "Set your tracking status and personal rating" : "Manual entry for games, books, or unlisted media"}
+              {mediaItem ? "Set your tracking status and personal rating" : "Manual entry for anime, manga, games, books, or unlisted media"}
             </p>
           </div>
           <button onClick={onClose} className="btn-icon">
@@ -220,13 +227,15 @@ export default function AddMediaModal({
                 </label>
                 <select
                   value={mediaType}
-                  onChange={(e) => setMediaType(e.target.value)}
+                  onChange={(e) => setMediaType(resolveInitialType(e.target.value))}
                   className="select-control"
                 >
                   <option value="movie">Movie</option>
                   <option value="tv">TV Series</option>
                   <option value="anime">Anime (Crunchyroll, TV, Movie)</option>
+                  <option value="manga">Manga</option>
                   <option value="game">Video Game (PC, Steam, Epic)</option>
+                  <option value="novel">Novels & Books</option>
                 </select>
               </div>
 

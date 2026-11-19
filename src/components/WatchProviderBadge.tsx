@@ -447,6 +447,80 @@ export function getQuickSearchProviders(
     ];
   }
 
+  if (mediaType === "manga") {
+    return [
+      {
+        name: "MangaDex",
+        label: "MangaDex",
+        color: "#ff6740",
+        bg: "rgba(255, 103, 64, 0.16)",
+        border: "rgba(255, 103, 64, 0.35)",
+        url: `https://mangadex.org/search?q=${cleanTitle}`,
+      },
+      {
+        name: "BookWalker",
+        label: "BookWalker",
+        color: "#38bdf8",
+        bg: "rgba(56, 189, 248, 0.15)",
+        border: "rgba(56, 189, 248, 0.35)",
+        url: `https://global.bookwalker.jp/search/?word=${cleanTitle}`,
+      },
+      {
+        name: "Crunchyroll",
+        label: "Crunchyroll",
+        color: "#ff640a",
+        bg: "rgba(255, 100, 10, 0.15)",
+        border: "rgba(255, 100, 10, 0.35)",
+        url: `https://www.crunchyroll.com/search?q=${cleanTitle}`,
+      },
+      {
+        name: "Viz",
+        label: "VIZ Media",
+        color: "#ef4444",
+        bg: "rgba(239, 68, 68, 0.15)",
+        border: "rgba(239, 68, 68, 0.35)",
+        url: `https://www.viz.com/search?search=${cleanTitle}`,
+      },
+    ];
+  }
+
+  if (mediaType === "novel" || (mediaType as string) === "book") {
+    return [
+      {
+        name: "Open Library",
+        label: "Open Library",
+        color: "#10b981",
+        bg: "rgba(16, 185, 129, 0.16)",
+        border: "rgba(16, 185, 129, 0.35)",
+        url: `https://openlibrary.org/search?q=${cleanTitle}`,
+      },
+      {
+        name: "Goodreads",
+        label: "Goodreads",
+        color: "#f59e0b",
+        bg: "rgba(245, 158, 11, 0.16)",
+        border: "rgba(245, 158, 11, 0.35)",
+        url: `https://www.goodreads.com/search?q=${cleanTitle}`,
+      },
+      {
+        name: "Google Books",
+        label: "Google Books",
+        color: "#60a5fa",
+        bg: "rgba(96, 165, 250, 0.15)",
+        border: "rgba(96, 165, 250, 0.35)",
+        url: `https://www.google.com/search?tbm=bks&q=${cleanTitle}`,
+      },
+      {
+        name: "Amazon",
+        label: "Kindle / Books",
+        color: "#f8fafc",
+        bg: "rgba(255, 255, 255, 0.12)",
+        border: "rgba(255, 255, 255, 0.3)",
+        url: `https://www.amazon.com/s?k=${cleanTitle}&i=stripbooks`,
+      },
+    ];
+  }
+
   return [
     {
       name: "Crunchyroll",

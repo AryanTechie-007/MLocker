@@ -23,7 +23,15 @@ export const MEDIA_STATUSES = [
   "dropped",
 ] as const;
 
-export const MediaTypeEnum = z.enum(MEDIA_TYPES);
+export const CanonicalMediaTypeEnum = z.enum(MEDIA_TYPES);
+
+/**
+ * Validates media categories and normalizes the API-boundary alias "book" to canonical "novel".
+ */
+export const MediaTypeEnum = z
+  .enum([...MEDIA_TYPES, "book"] as const)
+  .transform((val) => (val === "book" ? "novel" : val) as (typeof MEDIA_TYPES)[number]);
+
 export const MediaStatusEnum = z.enum(MEDIA_STATUSES);
 
 export const SafeIdSchema = z

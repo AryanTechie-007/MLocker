@@ -11,10 +11,11 @@ interface OpenLibraryDoc {
 }
 
 export async function searchBooks(query: string): Promise<MediaSearchResult[]> {
+  if (!query || !query.trim()) return [];
   try {
     const res = await fetch(
-      `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=12`,
-      { next: { revalidate: 3600 } }
+      `https://openlibrary.org/search.json?q=${encodeURIComponent(query.trim())}&limit=12`,
+      { next: { revalidate: 3600 }, signal: AbortSignal.timeout(8000) }
     );
     if (!res.ok) return [];
     const data = await res.json();

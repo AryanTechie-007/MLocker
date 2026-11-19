@@ -16,15 +16,17 @@ interface KitsuItem {
 }
 
 export async function searchAnime(query: string): Promise<MediaSearchResult[]> {
+  if (!query || !query.trim()) return [];
   try {
     const res = await fetch(
-      `https://kitsu.io/api/edge/anime?filter[text]=${encodeURIComponent(query)}&page[limit]=12`,
+      `https://kitsu.io/api/edge/anime?filter[text]=${encodeURIComponent(query.trim())}&page[limit]=12`,
       {
         headers: {
           Accept: "application/vnd.api+json",
           "Content-Type": "application/vnd.api+json",
         },
         next: { revalidate: 3600 },
+        signal: AbortSignal.timeout(8000),
       }
     );
 
@@ -60,15 +62,17 @@ export async function searchAnime(query: string): Promise<MediaSearchResult[]> {
 }
 
 export async function searchManga(query: string): Promise<MediaSearchResult[]> {
+  if (!query || !query.trim()) return [];
   try {
     const res = await fetch(
-      `https://kitsu.io/api/edge/manga?filter[text]=${encodeURIComponent(query)}&page[limit]=12`,
+      `https://kitsu.io/api/edge/manga?filter[text]=${encodeURIComponent(query.trim())}&page[limit]=12`,
       {
         headers: {
           Accept: "application/vnd.api+json",
           "Content-Type": "application/vnd.api+json",
         },
         next: { revalidate: 3600 },
+        signal: AbortSignal.timeout(8000),
       }
     );
 

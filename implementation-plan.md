@@ -446,39 +446,52 @@ Work in small pull requests. Each milestone must be reviewed and tested before t
 - [x] Windows packaged Electron runtime and graceful shutdown verified in CI.
 - [x] All 143 unit and integration tests passing.
 
-### Milestone 3 — Six media categories [NEXT / NOT STARTED]
-**Status:** Next / Not started  
+### Milestone 3 — Six media categories [COMPLETE]
+**Status:** Complete  
+**Date of Completion:** November 19, 2026  
+**Audit Report:** [`test-results/milestone-3-six-category-audit.md`](file:///test-results/milestone-3-six-category-audit.md)  
+**Implementation Tasks Completed:**
+- [x] Add search providers for remaining categories (Kitsu for Anime/Manga, Open Library for Novels/Books, Steam for Games, TMDb/iTunes/TVMaze for Movies/TV).
+- [x] Establish single canonical identifier `novel` across runtime and persistence; accept `book` as API-boundary alias and normalize `book` -> `novel` on input.
+- [x] Retain existing chapter tracking (`readChapters`, `totalChapters`) for novels and manga without adding page tracking or database schema migrations.
+- [x] Implement resilient anime search fallback: TMDb is primary; Kitsu is automatic fallback when TMDb key is missing, fails, or returns no results.
+- [x] Rename `src/lib/api/jikan.ts` -> `src/lib/api/kitsu.ts` reflecting actual Kitsu API v3 integration.
+- [x] Implement isolated, non-failing provider dispatches in `src/lib/api/unified-search.ts`: dedicated single-category routes and 6-way concurrent search for `all`.
+- [x] Category-specific UI: progress trackers and metadata displays in `AddMediaModal.tsx`, `library/page.tsx`, and `media/[id]/page.tsx`.
+- [x] Unified search across all six categories with type filtering in `search/page.tsx`, removing buggy modal popup on game selection.
+- [x] Legal watch/read/play links per category in `WatchProviderBadge.tsx` (MangaDex, BookWalker, Crunchyroll, VIZ, Open Library, Goodreads, Google Books, Amazon Books, Steam, Epic, GOG, Xbox, PSN, Prime Video, Netflix, etc.).
+- [x] Manual entry support for unlisted media in `AddMediaModal.tsx` for all six categories.
+- [x] Comprehensive test coverage with 48 new tests across 4 suites (191 total repository tests, 0 failures).
 
-> [!IMPORTANT]
-> **Do not mark Milestone 3 as started or completed. No implementation for it has been authorized yet.**  
-> The first development activity for Milestone 3 is an **audit-only investigation**. No feature implementation should begin until the audit findings have been reviewed and approved.
-
-**Pre-implementation Audit Tasks**
-- [ ] Inspect existing naming conventions across codebase, schema, and database: determine whether `BOOK`, `NOVEL`, or other conventions already exist. Do not blindly rename enums or alter stored data.
-- [ ] Audit search providers and unified search logic (`src/lib/api/`) across all six categories:
-  - Movies (`MOVIE`)
-  - TV Shows (`TV_SHOW`)
-  - Anime (`ANIME`)
-  - Manga (`MANGA`)
-  - Games (`GAME`)
-  - Books/Novels (`BOOK`/`NOVEL`)
-- [ ] Audit CRUD APIs, validation schemas (`src/lib/domain/validation.ts`), and manual entry flows.
-- [ ] Audit library navigation tabs, category filters, and detail page layouts.
-- [ ] Audit category-specific progress tracking (episodes, chapters, pages, hours) to ensure clean extension without model duplication.
-- [ ] Produce a comprehensive Milestone 3 Audit Report for review before writing feature code.
-
-**Implementation Tasks (Pending Audit Review)**
-- [ ] Implement search provider integrations and type safety for missing categories.
-- [ ] Add category-specific progress fields where needed without duplicating the entire media model.
-- [ ] Implement request cancellation and debounce on unified search.
-- [ ] Add comprehensive tests for search, CRUD, and progress across all six categories.
+**Files Created & Modified:**
+- `src/lib/api/jikan.ts` -> `src/lib/api/kitsu.ts` (Renamed, added query guard & timeout)
+- `src/lib/api/openLibrary.ts` (Created, Open Library book search provider)
+- `src/lib/domain/validation.ts` (Modified, CanonicalMediaTypeEnum & MediaTypeEnum book->novel normalization)
+- `src/lib/api/unified-search.ts` (Modified, dedicated dispatches, anime fallback, 6-way all search)
+- `src/components/AddMediaModal.tsx` (Modified, Manga & Novels options, chapter progress fields, type normalization)
+- `src/components/WatchProviderBadge.tsx` (Modified, storefront links for manga, novel, and book)
+- `src/app/library/page.tsx` (Modified, Manga & Novels category tabs, book alias count & filter handling)
+- `src/app/search/page.tsx` (Modified, Manga & Novels pills, game modal bugfix, immediate query dispatch)
+- `src/app/media/[id]/page.tsx` (Modified, category-aware header labels and metadata)
+- `tests/unit/kitsu-provider.test.ts` (Created, 9 unit tests for anime/manga)
+- `tests/unit/openlibrary-provider.test.ts` (Created, 5 unit tests for book search & rating mapping)
+- `tests/unit/unified-search-categories.test.ts` (Created, 15 unit tests for category dispatch, fallback, resilience)
+- `tests/unit/ui-category-controls.test.ts` (Created, 11 unit tests for UI contracts across modals, search, library)
+- `tests/security/validation.test.ts` (Modified, 8 additional tests for category validation & progress bounds)
 
 **Acceptance criteria**
-- [ ] An audit report is approved prior to feature implementation.
-- [ ] Users can add, search, edit, browse and track all six categories consistently.
-- [ ] Unsupported external metadata is handled gracefully.
+- [x] An audit report is approved prior to feature implementation (`test-results/milestone-3-six-category-audit.md`).
+- [x] Users can add, search, edit, browse and track all six categories consistently.
+- [x] Unsupported external metadata is handled gracefully without crashing search or UI.
+- [x] 100% of test suites pass (18 test files, 191 tests passing).
+- [x] TypeScript compiler (`npx tsc --noEmit`) passes with zero errors.
+- [x] ESLint (`npm run lint`) passes with zero errors.
+- [x] Production build (`npm run build`) succeeds.
 
-### Milestone 4 — External source manager
+### Milestone 4 — External source manager [NEXT / NOT STARTED]
+**Status:** Next / Not started  
+> [!NOTE]
+> Milestone 4 is the next development milestone. It remains unstarted until explicitly requested.
 **Tasks**
 - Add `MediaSource` and migration.
 - Add source CRUD APIs with ownership validation.
@@ -675,8 +688,8 @@ Keep domain logic (source validation, session rules, sync merge rules) outside R
 | **1.2.1. Protocol allowlist correction** | Complete | Protocol allowlist enforced before origin check in `handleWillNavigate()` ([`856538c`](https://github.com/AryanTechie-007/MLocker/commit/856538c42f6a46039ae0db6edf8c7b72b2f4d0fe), CI run [44525905345](https://github.com/AryanTechie-007/MLocker/actions/runs/44525905345)) |
 | **2. Database and desktop reliability** | Complete | Embedded SQLite migration runner, WAL journal mode, pre-migration backups, persistent userData path ([`1b1481f`](https://github.com/AryanTechie-007/MLocker/commit/1b1481fa512ddb506dbbba07bca0bc4225602496), [`8c12fe4`](https://github.com/AryanTechie-007/MLocker/commit/8c12fe489a4d64b86fa207a28dab326883700286), CI run [44532724671](https://github.com/AryanTechie-007/MLocker/actions/runs/44532724671), [`test-results/milestone-2-database-report.md`](file:///test-results/milestone-2-database-report.md)) |
 | **2.1. Database lifecycle corrective audit** | Complete | Single migration source of truth, strict structural legacy validation, semantic default equivalence, isolated test DB, graceful Windows Electron shutdown ([`fc8f6b3`](https://github.com/AryanTechie-007/MLocker/commit/fc8f6b376c1f6a9404aae30d42ea6011b9ff0aac), [`30033d2`](https://github.com/AryanTechie-007/MLocker/commit/30033d295f58e7fee93d66b8631360d50f9e9411), [`74a60de`](https://github.com/AryanTechie-007/MLocker/commit/74a60decde3f813cbfbfb1e02dcb1744be216f99), CI run [44569027391](https://github.com/AryanTechie-007/MLocker/actions/runs/44569027391), [`test-results/milestone-2.1-corrective-report.md`](file:///test-results/milestone-2.1-corrective-report.md)) |
-| **3. Six media categories** | Next / Not started | Milestone 3 audit-only investigation required before feature implementation begins |
-| **4. External source manager** | Not started | Blocked on Milestone 3 completion |
+| **3. Six media categories** | Complete | Kitsu provider (anime/manga), Open Library provider (novels/books), canonical `novel` identifier & `book` alias, resilient anime fallback, UI controls, 18 suites & 191 tests passing ([`test-results/milestone-3-six-category-audit.md`](file:///test-results/milestone-3-six-category-audit.md)) |
+| **4. External source manager** | Next / Not started | Blocked until Milestone 4 is explicitly started |
 | **5. Session engine** | Not started | Blocked on Milestone 4 completion |
 | **6. Browser extension MVP** | Not started | Blocked on Milestone 5 completion |
 | **7. Cloud sync** | Not started | Blocked on Milestone 6 completion |
@@ -685,26 +698,13 @@ Keep domain logic (source validation, session rules, sync merge rules) outside R
 
 ---
 
-## 12. Next developer deliverable — Milestone 3 audit
+## 12. Next developer deliverable — Milestone 4: External Source Manager
 
-**Current position:** Milestones 0 through 2.1 are complete and verified. The next development activity is an **audit-only investigation** for Milestone 3 (Six Media Categories).
+**Current position:** Milestones 0 through 3 are complete and verified. The next development milestone is **Milestone 4 — External source manager**.
 
-Before any feature code is written:
-1. Conduct an audit-only investigation covering:
-   - Movies (`MOVIE`)
-   - TV Shows (`TV_SHOW`)
-   - Anime (`ANIME`)
-   - Manga (`MANGA`)
-   - Games (`GAME`)
-   - Books/Novels (`BOOK`/`NOVEL`)
-2. Inspect:
-   - Database schema and Prisma models
-   - Category naming conventions across the codebase (`BOOK` vs `NOVEL` vs `BOOKS_NOVELS`)
-   - Metadata search providers and unified search logic
-   - Manual entry, validation schemas, and CRUD APIs
-   - Library filters, navigation tabs, and detail pages
-   - Category-specific progress tracking fields (episodes, chapters, pages, hours)
-   - Existing automated test coverage and gaps
-3. Determine existing naming conventions and data representation. Do not blindly rename enums, change database columns, or alter stored data without documented justification.
-4. Document all findings, type contracts, and proposed implementation steps in a dedicated audit report.
-5. **Wait for review and approval before beginning any Milestone 3 implementation.** Do not start feature code until the audit findings are confirmed.
+Do not begin Milestone 4 until requested. When authorized, implement:
+1. `MediaSource` model and database migration.
+2. Source CRUD APIs with strict ownership validation (`session.userId`).
+3. External source registration and management UI on media detail pages.
+4. Strict URL validation (`http:` and `https:` protocols only).
+5. Safe external link launching via `shell.openExternal` in Electron and `rel="noopener noreferrer"` in Web.

@@ -39,6 +39,78 @@ describe("Security & Input Validation: Domain Schemas", () => {
       }
     });
 
+    it("accepts all six canonical media categories directly", () => {
+      const canonicalCategories = ["movie", "tv", "anime", "manga", "game", "novel"] as const;
+      for (const cat of canonicalCategories) {
+        const result = CreateMediaSchema.safeParse({
+          mediaType: cat,
+          title: `Sample ${cat}`,
+        });
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.mediaType).toBe(cat);
+        }
+      }
+    });
+
+    it("accepts 'book' alias in CreateMediaSchema and normalizes to 'novel'", () => {
+      const result = CreateMediaSchema.safeParse({
+        mediaType: "book",
+        title: "Dune",
+        readChapters: 12,
+        totalChapters: 25,
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.mediaType).toBe("novel");
+        expect(result.data.readChapters).toBe(12);
+        expect(result.data.totalChapters).toBe(25);
+      }
+    });
+
+    it("rejects invalid media categories (e.g. comic, podcast, article, audiobook)", () => {
+      const invalidTypes = ["podcast", "comic", "article", "audiobook", "magazine", "unknown"];
+      for (const invalidType of invalidTypes) {
+        const result = CreateMediaSchema.safeParse({
+          mediaType: invalidType,
+          title: "Invalid Media",
+        });
+        expect(result.success).toBe(false);
+      }
+    });
+
+    it("validates chapter progress for manga and novels", () => {
+      const validManga = CreateMediaSchema.safeParse({
+        mediaType: "manga",
+        title: "One Piece",
+        readChapters: 1050,
+        totalChapters: 1100,
+      });
+      expect(validManga.success).toBe(true);
+
+      const validNovel = CreateMediaSchema.safeParse({
+        mediaType: "novel",
+        title: "Three-Body Problem",
+        readChapters: 15,
+        totalChapters: 36,
+      });
+      expect(validNovel.success).toBe(true);
+
+      const floatChapters = CreateMediaSchema.safeParse({
+        mediaType: "manga",
+        title: "Chainsaw Man",
+        readChapters: 12.5,
+      });
+      expect(floatChapters.success).toBe(false);
+
+      const negativeChapters = CreateMediaSchema.safeParse({
+        mediaType: "novel",
+        title: "Dune",
+        readChapters: -1,
+      });
+      expect(negativeChapters.success).toBe(false);
+    });
+
     it("rejects negative or out-of-bounds ratings (0-10)", () => {
       const negativeRating = {
         mediaType: "game",
@@ -150,6 +222,26 @@ describe("Security & Input Validation: Domain Schemas", () => {
       });
       expect(result.success).toBe(false);
     });
+
+    it("accepts 'book' alias in MediaQuerySchema and normalizes to 'novel'", () => {
+      const result = MediaQuerySchema.safeParse({
+        type: "book",
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.type).toBe("novel");
+      }
+    });
+
+    it("accepts 'manga' in MediaQuerySchema", () => {
+      const result = MediaQuerySchema.safeParse({
+        type: "manga",
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.type).toBe("manga");
+      }
+    });
   });
 
   describe("Collection & CollectionItem Validation", () => {
@@ -215,6 +307,27 @@ describe("Security & Input Validation: Domain Schemas", () => {
       expect(SearchQuerySchema.safeParse({ q: "" }).success).toBe(false);
       expect(SearchQuerySchema.safeParse({ q: "   " }).success).toBe(false);
       expect(SearchQuerySchema.safeParse({ q: "Inception" }).success).toBe(true);
+    });
+
+    it("accepts 'book' alias in SearchQuerySchema and normalizes to 'novel'", () => {
+      const result = SearchQuerySchema.safeParse({
+        q: "Dune",
+        type: "book",
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.type).toBe("novel");
+      }
+    });
+
+    it("accepts canonical 'manga' and 'novel' in SearchQuerySchema", () => {
+      const mangaResult = SearchQuerySchema.safeParse({ q: "Berserk", type: "manga" });
+      expect(mangaResult.success).toBe(true);
+      if (mangaResult.success) expect(mangaResult.data.type).toBe("manga");
+
+      const novelResult = SearchQuerySchema.safeParse({ q: "Dune", type: "novel" });
+      expect(novelResult.success).toBe(true);
+      if (novelResult.success) expect(novelResult.data.type).toBe("novel");
     });
   });
 

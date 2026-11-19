@@ -426,7 +426,11 @@ export default function MediaDetailPage({
                 marginBottom: "10px",
               }}
             >
-              Watch / Search on Streaming Services
+              {item.mediaType === "game"
+                ? "Play / Storefront Searches"
+                : item.mediaType === "manga" || item.mediaType === "novel"
+                ? "Read / Book Storefronts & Catalogs"
+                : "Watch / Search on Streaming Services"}
             </span>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
               {getQuickSearchProviders(item.title, item.mediaType).map((provider) => (
