@@ -167,9 +167,9 @@ Packaging was executed via `electron-builder --dir` producing `dist/win-unpacked
 
 ## 7. Version Control & CI Information
 
-- **Implementation Commit SHA:** `30033d295f58e7fee93d66b8631360d50f9e9411`
-- **GitHub Actions Run ID:** `44562218501`
-- **GitHub Actions Run URL:** [https://github.com/AryanTechie-007/MLocker/actions/runs/44562218501](https://github.com/AryanTechie-007/MLocker/actions/runs/44562218501)
+- **Implementation Commit SHA:** `74a60de9ff2b0d5c0e0e09062b1b3699b666a4bc`
+- **GitHub Actions Run ID:** `44569027391`
+- **GitHub Actions Run URL:** [https://github.com/AryanTechie-007/MLocker/actions/runs/44569027391](https://github.com/AryanTechie-007/MLocker/actions/runs/44569027391)
 - **Overall Run Conclusion:** `success`
 - **Verified Jobs & Steps:**
   - **Job 1: Build and Test (Linux) (`ubuntu-latest`) — `success`**
@@ -180,7 +180,7 @@ Packaging was executed via `electron-builder --dir` producing `dist/win-unpacked
     5. `Generate Prisma client & apply SQLite migrations` (`npx prisma generate && npx prisma migrate deploy`) — success
     6. `Type check` (`npx tsc --noEmit`) — success
     7. `Lint` (`npm run lint`) — success
-    8. `Run tests` (`npm test`, 136 tests across 14 suites) — success
+    8. `Run tests` (`npm test`, 143 tests across 14 suites) — success
     9. `Build Next.js` (`npm run build`) — success
   - **Job 2: Electron Windows Package & Runtime Validation (`windows-latest`) — `success`**
     1. `Set up job` — success
@@ -189,4 +189,4 @@ Packaging was executed via `electron-builder --dir` producing `dist/win-unpacked
     4. `Install dependencies` (`npm ci`) — success
     5. `Generate Prisma client & apply SQLite migrations` — success
     6. `Build Next.js & package Electron application` (`npm run electron:pack`) — success
-    7. `Verify clean-install packaged Electron runtime` — success (verified clean launch, `mlocker.db` auto-provisioning, `PRAGMA user_version = 1`, `PRAGMA integrity_check = ok`, all 5 tables present, and clean termination)
+    7. `Verify clean-install packaged Electron runtime & graceful shutdown` — success (verified clean launch, `mlocker.db` auto-provisioning, `PRAGMA user_version = 1`, `PRAGMA integrity_check = ok`, all 5 baseline tables present, graceful shutdown via test signal, clean process termination with exit code 0 within timeout)
