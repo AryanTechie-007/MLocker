@@ -1,21 +1,21 @@
 # MLocker Implementation Plan
 
 **Project:** [AryanTechie-007/MLocker](https://github.com/AryanTechie-007/MLocker)  
-**Status:** Active Implementation Plan (Milestones 0–2.1 Complete & Verified; Milestone 3 Implementation-Complete & Awaiting Sign-off; Milestone 4 Next / Not Started)  
+**Status:** Active Implementation Plan (Milestones 0–3 Complete, Formally Approved & Verified; Milestone 4 Authorized / Ready for Implementation)  
 **Product decisions:** Web + desktop; automatic activity tracking; local-first storage with optional cloud synchronisation.
 
 ---
 
 ## Current Project Position
 
-**Current position:** Milestones 0 through 2.1 are complete and verified. **Milestone 3 — Six Media Categories** is implementation-complete and verified in CI; it is currently **awaiting formal user sign-off**.
+**Current position:** Milestones 0 through 3 are complete, formally approved, and verified. **Milestone 3 — Six Media Categories** has received **formal user acceptance and approval** following comprehensive local and CI verification. **Milestone 4 — External Source Manager & Link Launcher** is now **formally authorized** to begin.
 
-The audit ([`test-results/milestone-3-six-category-audit.md`](file:///test-results/milestone-3-six-category-audit.md)), implementation ([`test-results/milestone-3-implementation-report.md`](file:///test-results/milestone-3-implementation-report.md)), and final acceptance review ([`test-results/milestone-3-final-acceptance-report.md`](file:///test-results/milestone-3-final-acceptance-report.md)) are complete. All six media categories (Movies, TV Shows, Anime, Manga, Games, and Novels/Books) are supported across unified search, manual entry, library navigation, category filtering, and watch/read/play links.
+The Milestone 3 audit ([`test-results/milestone-3-six-category-audit.md`](file:///test-results/milestone-3-six-category-audit.md)), implementation report ([`test-results/milestone-3-implementation-report.md`](file:///test-results/milestone-3-implementation-report.md)), and final acceptance report ([`test-results/milestone-3-final-acceptance-report.md`](file:///test-results/milestone-3-final-acceptance-report.md)) are complete and approved. All six media categories (Movies, TV Shows, Anime, Manga, Games, and Novels/Books) are supported across unified search, manual entry, library navigation, category filtering, and watch/read/play links.
 
 Verified position: 19 test files and 201 automated tests passing with zero failures, `npx tsc --noEmit` clean (0 errors), `npm run lint` clean (0 errors), Next.js production build (`npm run build`) passing, and GitHub Actions CI Run [44593093753](https://github.com/AryanTechie-007/MLocker/actions/runs/44593093753) passing across both Linux and Windows runners.
 
-> [!IMPORTANT]
-> **Milestone 3 is implementation-complete and awaiting user sign-off. Do not begin Milestone 4 until Milestone 3 is formally approved by the user.**
+> [!NOTE]
+> **Milestone 3 is complete and formally approved. Milestone 4 (External Source Manager & Link Launcher) is authorized to begin.**
 
 ---
 
@@ -438,15 +438,15 @@ Work in small pull requests. Each milestone must be reviewed and tested before t
 - [x] Windows packaged Electron runtime and graceful shutdown verified in CI.
 - [x] All 143 unit and integration tests passing.
 
-### Milestone 3 — Six media categories [IMPLEMENTATION COMPLETE / AWAITING SIGN-OFF]
-**Status:** Implementation Complete / Awaiting User Sign-off  
+### Milestone 3 — Six media categories [COMPLETE & APPROVED]
+**Status:** Complete & Formally Approved by User  
 **Implementation commits:**
 - [`3c886626e42d871d58089071d88c75d48caa3a03`](https://github.com/AryanTechie-007/MLocker/commit/3c886626e42d871d58089071d88c75d48caa3a03) (feature implementation: six categories, Open Library, Kitsu, UI tabs, modals, storefront links)
 - [`4765c1d19fd1cdfa7b1d4650a1b52d09a87a4c05`](https://github.com/AryanTechie-007/MLocker/commit/4765c1d19fd1cdfa7b1d4650a1b52d09a87a4c05) (corrective: TMDb anime classification, eliminated ordinary TV/movie leakage, documentation alignment)  
 - [`20967d63f5767c212077e5e4b46d159c9a3ce752`](https://github.com/AryanTechie-007/MLocker/commit/20967d63f5767c212077e5e4b46d159c9a3ce752) (documentation reconciliation)  
 **Audit Report:** [`test-results/milestone-3-six-category-audit.md`](file:///test-results/milestone-3-six-category-audit.md)  
 **Implementation Report:** [`test-results/milestone-3-implementation-report.md`](file:///test-results/milestone-3-implementation-report.md)  
-**Acceptance Report:** [`test-results/milestone-3-final-acceptance-report.md`](file:///test-results/milestone-3-final-acceptance-report.md)  
+**Acceptance Report:** [`test-results/milestone-3-final-acceptance-report.md`](file:///test-results/milestone-3-final-acceptance-report.md) (Formally Approved)  
 **CI verification:** GitHub Actions Run [44593093753](https://github.com/AryanTechie-007/MLocker/actions/runs/44593093753) (`status: completed` / `conclusion: success`, 201/201 tests passing across 19 suites, dual-platform Ubuntu + Windows packaged Electron clean-install and verified graceful shutdown with exit code 0).  
 
 **Implementation Tasks Completed:**
@@ -493,12 +493,13 @@ Work in small pull requests. Each milestone must be reviewed and tested before t
 - [x] TypeScript compiler (`npx tsc --noEmit`) passes in reported local verification with zero errors.
 - [x] ESLint (`npm run lint`) passes in reported local verification with zero errors.
 - [x] Production build (`npm run build`) succeeds in reported local verification.
-- [x] Technical verification and independent CI verification completed (`test-results/milestone-3-final-acceptance-report.md`, CI run 44593093753); awaiting final user sign-off.
+- [x] Technical verification and independent CI verification completed (`test-results/milestone-3-final-acceptance-report.md`, CI run 44593093753).
+- [x] Formally accepted and approved by user on November 20, 2026.
 
-### Milestone 4 — External source manager [NEXT / NOT STARTED]
-**Status:** Next / Not started  
+### Milestone 4 — External source manager & link launcher [AUTHORIZED / READY FOR IMPLEMENTATION]
+**Status:** Authorized / Ready for Implementation  
 > [!NOTE]
-> Milestone 4 is the next development milestone. It remains unstarted until explicitly requested.
+> Milestone 4 is formally authorized to begin following user approval of Milestone 3. Implementation readiness review and detailed planning underway.
 **Tasks**
 - Add `MediaSource` and migration.
 - Add source CRUD APIs with ownership validation.

@@ -7,16 +7,18 @@
 **Latest Documentation Commit:** `e2f910aabde6da63a92550a25a476d036872aeaa`  
 **Branch:** `main`  
 **Evaluation Target:** Milestone 3 — Six-Category Search and Library Integration  
-**Status:** Implementation Complete / Awaiting User Sign-off  
-**Auditor Recommendation:** **`APPROVE`**
+**Status:** Complete & Formally Approved by User  
+**User Acceptance:** **`APPROVED`** (Formally accepted and approved by User on November 20, 2026)
 
 ---
 
 ## 1. Executive Summary & Recommendation
 
-Milestone 3 has been fully implemented, verified against all approved audit criteria, and independently validated through continuous integration and clean local test environments. The implementation is complete and submitted for final user review and sign-off.
+Milestone 3 has been fully implemented, verified against all approved audit criteria, independently validated through continuous integration, and formally accepted and approved by the user.
 
-### Auditor Recommendation: **`APPROVE`**
+### User Acceptance Status: **`APPROVED`**
+
+The user has reviewed the implementation, technical verification, and CI evidence and formally approved Milestone 3 — Six Media Categories as complete on November 20, 2026.
 
 Every functional requirement, security constraint, provider resilience requirement, and architectural boundary established in `AGENTS.md`, `implementation-plan.md`, and the approved audit (`test-results/milestone-3-six-category-audit.md`) has been satisfied without defect.
 
@@ -323,7 +325,9 @@ Prior run `44591704787` for corrective commit `4765c1d19fd1cdfa7b1d4650a1b52d09a
 
 ## 7. Out-of-Scope Milestones & Next Steps
 
-- **Milestone 3 is implementation-complete and verified in CI; it is currently awaiting formal user sign-off.**
+- **Milestone 3 is formally APPROVED and accepted by the user on November 20, 2026.**
 - **Milestone 4 (External Source Manager & Link Launcher):**
   - Includes user-defined external source URL registration, domain pattern validation, protocol allowlist enforcement, safe external launching via Electron `shell.openExternal`, and safe web links.
-  - In accordance with project boundaries, **Milestone 4 remains strictly unstarted and out of scope** until formal user sign-off on Milestone 3 is concluded and Milestone 4 work is explicitly authorized.
+  - **Milestone 4 is now formally authorized to begin.** Implementation planning, architectural readiness review, and dependency analysis are underway.
+- **Milestone 5 and subsequent milestones:**
+  - Remain strictly unstarted and out of scope until Milestone 4 is implemented, verified, and formally approved.
