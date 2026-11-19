@@ -136,12 +136,36 @@ VERIFICATION:
 - Update Milestone 2 in `implementation-plan.md`.
 ```
 
-### Milestone 3: Six Media Categories Expansion & Unified Search
+### Milestone 3: Six Media Categories (Audit-First Stage)
+
+> [!IMPORTANT]
+> **Milestone 3 Implementation Prerequisite:**  
+> Feature implementation for Milestone 3 must NOT begin until the audit findings in `test-results/milestone-3-six-category-audit.md` have been reviewed and approved.  
+> The prompt below is the active audit-only investigation prompt. The legacy implementation prompt is deprecated until audit approval.
+
+#### Active Audit Prompt (Use this first):
 ```markdown
 Read @AGENTS.md, @implementation-plan.md, and @.agents/skills/mlocker-architecture/SKILL.md.
 
 TASK:
-Implement Milestone 3: Six Media Categories Expansion and Unified Search.
+Conduct an evidence-based audit of MLocker's support across all six media categories: Movies, TV Shows, Anime, Manga, Games, and Books/Novels.
+
+CONSTRAINTS:
+- Audit only. Do NOT modify application code, schema, migrations, or database records.
+- Do NOT mark Milestone 3 as started or completed.
+
+DELIVERABLE:
+- Produce a comprehensive audit report at `test-results/milestone-3-six-category-audit.md` covering architecture, data model, six-category matrix, search providers, CRUD, UI/navigation, progress tracking, test coverage, and decisions requiring approval.
+- Wait for explicit user review and approval before proceeding to implementation.
+```
+
+#### Deprecated Implementation Prompt (Pending Audit Review & Approval):
+```markdown
+[DEPRECATED - DO NOT RUN UNTIL AUDIT REPORT IS APPROVED]
+Read @AGENTS.md, @implementation-plan.md, and @.agents/skills/mlocker-architecture/SKILL.md.
+
+TASK:
+Implement Milestone 3: Six Media Categories Expansion and Unified Search (Post-Audit Approval).
 
 REQUIREMENTS:
 1. Implement full support for all six categories: Movies (`MOVIE`), TV Shows (`TV_SHOW`), Anime (`ANIME`), Manga (`MANGA`), Games (`GAME`), Books/Novels (`BOOK`).
