@@ -153,11 +153,14 @@ Packaging was executed via `electron-builder --dir` producing `dist/win-unpacked
 
 ## 7. Version Control & CI Information
 
-- **Pushed Commit SHA:** `fc8f6b376c1f6a9404aae30d42ea6011b9ff0aac`
-- **GitHub Actions Run ID:** `44545966737`
-- **GitHub Actions Run URL:** [https://github.com/AryanTechie-007/MLocker/actions/runs/44545966737](https://github.com/AryanTechie-007/MLocker/actions/runs/44545966737)
+- **Primary Implementation Commit SHA:** `fc8f6b376c1f6a9404aae30d42ea6011b9ff0aac`
+- **Primary CI Run ID:** `44545966737`
+- **Primary CI Run URL:** [https://github.com/AryanTechie-007/MLocker/actions/runs/44545966737](https://github.com/AryanTechie-007/MLocker/actions/runs/44545966737)
+- **Report Update Commit SHA:** `23470037391f08cec829a06dc5539e8464a49fcd`
+- **Report CI Run ID:** `44546324775`
+- **Report CI Run URL:** [https://github.com/AryanTechie-007/MLocker/actions/runs/44546324775](https://github.com/AryanTechie-007/MLocker/actions/runs/44546324775)
 - **Job Conclusion:** `success`
-- **Verified Job Steps:**
+- **Verified Job Steps (Both Runs):**
   1. `Set up job` — success
   2. `Check out repository` — success
   3. `Set up Node.js 24` — success
