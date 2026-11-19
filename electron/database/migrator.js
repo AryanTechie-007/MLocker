@@ -1,11 +1,16 @@
 /**
  * MLocker Embedded SQLite Migration Runner
  * Executes versioned migrations tracked by PRAGMA user_version.
- * Runs atomically inside SQLite transactions without Prisma CLI dependencies.
+ * Runs atomically inside SQLite transactions with schema baseline validation.
  */
 
 const crypto = require("crypto");
-const { MIGRATIONS, LATEST_SCHEMA_VERSION } = require("./migrations");
+const { MIGRATIONS, LATEST_SCHEMA_VERSION, getMigrationChecksum } = require("./migrations");
+const {
+  validateLegacySchema,
+  upgradeSupportedLegacySchema,
+  inspectDatabaseSchema,
+} = require("./schema-validator");
 
 class MigrationError extends Error {
   constructor(message, context = {}) {
@@ -47,9 +52,10 @@ function getTableNames(db) {
 
 /**
  * Synchronizes applied migration record with _prisma_migrations table
- * so that Prisma CLI and embedded runner remain in harmony.
+ * using the genuine SHA-256 checksum of the migration SQL so Prisma CLI
+ * and embedded runner remain in complete lockstep.
  */
-function recordPrismaMigration(db, migrationName) {
+function recordPrismaMigration(db, migrationName, migrationSql = "") {
   try {
     db.exec(`
       CREATE TABLE IF NOT EXISTS "_prisma_migrations" (
@@ -70,7 +76,7 @@ function recordPrismaMigration(db, migrationName) {
 
     if (!existing) {
       const id = crypto.randomUUID();
-      const checksum = crypto.createHash("sha256").update(migrationName).digest("hex");
+      const checksum = getMigrationChecksum(migrationSql || migrationName);
       const finishedAt = Date.now();
       db.prepare(
         `INSERT INTO "_prisma_migrations" (id, checksum, finished_at, migration_name, applied_steps_count)
@@ -78,7 +84,6 @@ function recordPrismaMigration(db, migrationName) {
       ).run(id, checksum, finishedAt, migrationName);
     }
   } catch (err) {
-    // Non-fatal if _prisma_migrations cannot be written; PRAGMA user_version is authoritative
     console.warn(`[MLocker Migrator] Notice: Could not record in _prisma_migrations:`, err.message);
   }
 }
@@ -116,17 +121,79 @@ function runMigrations(db, options = {}) {
     };
   }
 
-  const existingTables = getTableNames(db);
-  const isFreshDatabase = existingTables.length === 0;
   const appliedMigrations = [];
 
-  logger(
-    `[MLocker Migrator] Migrating database from version ${initialVersion} to ${targetVersion} (fresh: ${isFreshDatabase})...`
-  );
+  // When initialVersion is 0, we must validate whether this is a fresh database
+  // or an existing database needing baseline classification.
+  let legacyBaselineHandled = false;
+  if (initialVersion === 0) {
+    const validation = validateLegacySchema(db);
 
-  // Filter migrations strictly between initialVersion + 1 and targetVersion
+    logger(
+      `[MLocker Migrator] Initial schema validation (version 0): status=${validation.type}, compatible=${validation.isCompatible}`
+    );
+
+    if (!validation.isCompatible) {
+      throw new MigrationError(
+        `Existing database schema (user_version 0) is incompatible with MLocker baseline: ${validation.reasons.join(
+          "; "
+        )}. Migration halted safely to prevent data loss or corruption.`,
+        { validation }
+      );
+    }
+
+    if (validation.type === "EXACT_BASELINE") {
+      // Database already possesses the complete v1 baseline schema.
+      // Baseline to v1 directly without executing duplicate CREATE TABLE statements.
+      logger("[MLocker Migrator] Database matches baseline schema. Stamping PRAGMA user_version = 1...");
+      const v1Migration = migrations.find((m) => m.version === 1);
+      const v1Name = v1Migration ? v1Migration.name : "20261119000000_init";
+      const v1Sql = v1Migration ? v1Migration.sql : "";
+
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        setSchemaVersion(db, 1);
+        recordPrismaMigration(db, v1Name, v1Sql);
+        db.exec("COMMIT");
+        appliedMigrations.push(v1Name);
+        legacyBaselineHandled = true;
+      } catch (err) {
+        try { db.exec("ROLLBACK"); } catch {}
+        throw new MigrationError(`Failed baselining existing database: ${err.message}`, { originalError: err });
+      }
+    } else if (validation.type === "SUPPORTED_LEGACY") {
+      // Supported legacy database: missing known non-breaking columns.
+      // Upgrade missing columns cleanly, then baseline to v1.
+      logger(
+        `[MLocker Migrator] Upgrading supported legacy database to baseline v1 (${validation.reasons.join("; ")})...`
+      );
+      const v1Migration = migrations.find((m) => m.version === 1);
+      const v1Name = v1Migration ? v1Migration.name : "20261119000000_init";
+      const v1Sql = v1Migration ? v1Migration.sql : "";
+
+      db.exec("BEGIN IMMEDIATE");
+      try {
+        upgradeSupportedLegacySchema(db, validation.missingOptionalColumns, logger);
+        setSchemaVersion(db, 1);
+        recordPrismaMigration(db, v1Name, v1Sql);
+        db.exec("COMMIT");
+        appliedMigrations.push(v1Name);
+        legacyBaselineHandled = true;
+        logger("[MLocker Migrator] Supported legacy database upgraded and baselined to v1 successfully.");
+      } catch (err) {
+        try { db.exec("ROLLBACK"); } catch {}
+        throw new MigrationError(
+          `Failed upgrading supported legacy database to baseline: ${err.message}`,
+          { originalError: err }
+        );
+      }
+    }
+  }
+
+  // Filter migrations strictly between current version and targetVersion
+  const currentVersionAfterBaseline = getSchemaVersion(db);
   const pending = migrations.filter(
-    (m) => m.version > initialVersion && m.version <= targetVersion
+    (m) => m.version > currentVersionAfterBaseline && m.version <= targetVersion
   );
 
   for (const migration of pending) {
@@ -144,7 +211,7 @@ function runMigrations(db, options = {}) {
       }
 
       setSchemaVersion(db, migration.version);
-      recordPrismaMigration(db, migration.name);
+      recordPrismaMigration(db, migration.name, migration.sql || "");
 
       db.exec("COMMIT");
       appliedMigrations.push(migration.name);

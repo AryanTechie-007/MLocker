@@ -1,13 +1,52 @@
 /**
  * MLocker Versioned Database Migrations Registry
- * Zero-CLI migration definitions for Electron and runtime initialization.
+ * Single-source migration definitions synchronized with prisma/migrations.
  */
 
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 
-const INIT_MIGRATION_SQL = `-- CreateTable
-CREATE TABLE IF NOT EXISTS "User" (
+/**
+ * Resolves the canonical Prisma migration SQL file from filesystem.
+ * Handles development, test, and packaged Electron environments.
+ */
+function resolveMigrationSql(migrationName) {
+  const candidatePaths = [
+    // 1. Development and vitest test environment (relative to this file)
+    path.resolve(__dirname, "../../prisma/migrations", migrationName, "migration.sql"),
+    // 2. Relative to process.cwd()
+    path.resolve(process.cwd(), "prisma/migrations", migrationName, "migration.sql"),
+    // 3. Packaged Electron resources directory
+    typeof process.resourcesPath === "string"
+      ? path.join(process.resourcesPath, "prisma/migrations", migrationName, "migration.sql")
+      : null,
+  ].filter(Boolean);
+
+  for (const candidate of candidatePaths) {
+    if (fs.existsSync(candidate)) {
+      try {
+        const content = fs.readFileSync(candidate, "utf8");
+        // Normalize CRLF to LF for deterministic cross-platform checksums
+        return content.replace(/\r\n/g, "\n");
+      } catch {}
+    }
+  }
+
+  // Canonical fallback identical byte-for-byte to prisma/migrations/20261119000000_init/migration.sql
+  if (migrationName === "20261119000000_init") {
+    return CANONICAL_INIT_SQL;
+  }
+
+  throw new Error(`Migration SQL file not found for migration: ${migrationName}`);
+}
+
+/**
+ * Canonical DDL matching prisma/migrations/20261119000000_init/migration.sql byte-for-byte.
+ * Note: "updatedAt" is DATETIME NOT NULL (Prisma runtime sets timestamp on inserts/updates).
+ */
+const CANONICAL_INIT_SQL = `-- CreateTable
+CREATE TABLE "User" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "name" TEXT,
     "email" TEXT NOT NULL,
@@ -17,7 +56,7 @@ CREATE TABLE IF NOT EXISTS "User" (
 );
 
 -- CreateTable
-CREATE TABLE IF NOT EXISTS "UserMedia" (
+CREATE TABLE "UserMedia" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "userId" TEXT NOT NULL,
     "mediaType" TEXT NOT NULL,
@@ -41,24 +80,24 @@ CREATE TABLE IF NOT EXISTS "UserMedia" (
     "endDate" DATETIME,
     "tags" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
     CONSTRAINT "UserMedia_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
-CREATE TABLE IF NOT EXISTS "Collection" (
+CREATE TABLE "Collection" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "userId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT,
     "coverUrl" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
     CONSTRAINT "Collection_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
-CREATE TABLE IF NOT EXISTS "CollectionItem" (
+CREATE TABLE "CollectionItem" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "collectionId" TEXT NOT NULL,
     "userMediaId" TEXT NOT NULL,
@@ -69,36 +108,44 @@ CREATE TABLE IF NOT EXISTS "CollectionItem" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX IF NOT EXISTS "User_email_key" ON "User"("email");
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
-CREATE INDEX IF NOT EXISTS "UserMedia_userId_mediaType_idx" ON "UserMedia"("userId", "mediaType");
+CREATE INDEX "UserMedia_userId_mediaType_idx" ON "UserMedia"("userId", "mediaType");
 
 -- CreateIndex
-CREATE INDEX IF NOT EXISTS "UserMedia_userId_status_idx" ON "UserMedia"("userId", "status");
+CREATE INDEX "UserMedia_userId_status_idx" ON "UserMedia"("userId", "status");
 
 -- CreateIndex
-CREATE UNIQUE INDEX IF NOT EXISTS "UserMedia_userId_mediaType_externalId_key" ON "UserMedia"("userId", "mediaType", "externalId");
+CREATE UNIQUE INDEX "UserMedia_userId_mediaType_externalId_key" ON "UserMedia"("userId", "mediaType", "externalId");
 
 -- CreateIndex
-CREATE INDEX IF NOT EXISTS "Collection_userId_idx" ON "Collection"("userId");
+CREATE INDEX "Collection_userId_idx" ON "Collection"("userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX IF NOT EXISTS "CollectionItem_collectionId_userMediaId_key" ON "CollectionItem"("collectionId", "userMediaId");
+CREATE UNIQUE INDEX "CollectionItem_collectionId_userMediaId_key" ON "CollectionItem"("collectionId", "userMediaId");
 `;
 
 /**
- * Ordered list of migrations.
- * Each entry must contain:
- * - version: integer (target PRAGMA user_version)
- * - name: descriptive migration identifier
- * - up: SQL string or async/sync function (db)
+ * Calculates deterministic SHA-256 checksum matching Prisma CLI format.
+ */
+function getMigrationChecksum(sqlContent) {
+  const normalized = sqlContent.replace(/\r\n/g, "\n");
+  return crypto.createHash("sha256").update(normalized).digest("hex");
+}
+
+const INIT_MIGRATION_SQL = resolveMigrationSql("20261119000000_init");
+const INIT_MIGRATION_CHECKSUM = getMigrationChecksum(INIT_MIGRATION_SQL);
+
+/**
+ * Ordered registry of migrations.
  */
 const MIGRATIONS = [
   {
     version: 1,
     name: "20261119000000_init",
     sql: INIT_MIGRATION_SQL,
+    checksum: INIT_MIGRATION_CHECKSUM,
   },
 ];
 
@@ -108,4 +155,7 @@ module.exports = {
   MIGRATIONS,
   LATEST_SCHEMA_VERSION,
   INIT_MIGRATION_SQL,
+  INIT_MIGRATION_CHECKSUM,
+  resolveMigrationSql,
+  getMigrationChecksum,
 };

@@ -175,19 +175,22 @@ function initializeDatabase(app, options = {}) {
 
     const currentVersion = getSchemaVersion(db);
 
-    // 2. If upgrades are needed and database contains existing data, take pre-migration backup
+    // 2. If upgrades are needed and database contains existing data, take pre-migration backup.
+    // If the backup fails or is unverifiable, HALT migration immediately to protect user data.
     if (currentVersion < LATEST_SCHEMA_VERSION && !isFreshInstall) {
       try {
         preMigrationBackup = createDatabaseBackup(dbPath, backupDir, {
           tag: `pre-migration-v${currentVersion}`,
           maxBackups: 5,
+          requireCheckpoint: true,
         });
         logger(
-          `[MLocker Lifecycle] Created pre-migration backup at: ${preMigrationBackup.backupPath}`
+          `[MLocker Lifecycle] Created verified pre-migration backup at: ${preMigrationBackup.backupPath}`
         );
       } catch (backupErr) {
-        logger(
-          `[MLocker Lifecycle] Warning: Failed creating pre-migration backup: ${backupErr.message}`
+        throw new DatabaseLifecycleError(
+          `Pre-migration backup failed: ${backupErr.message}. Halting migration to protect database from unrecoverable modification.`,
+          { dbPath, originalError: backupErr }
         );
       }
     }
@@ -255,11 +258,16 @@ function initializeDatabase(app, options = {}) {
 
 /**
  * Gracefully checkpoints WAL and flushes writes prior to application shutdown.
+ * Returns the checkpoint outcome so callers never report success when skipped or failed.
+ *
+ * @param {string} dbPath
+ * @returns {{ ok: boolean, error?: string, busy?: boolean }}
  */
 function shutdownDatabase(dbPath) {
   if (dbPath && fs.existsSync(dbPath)) {
-    checkpointDatabase(dbPath);
+    return checkpointDatabase(dbPath, "TRUNCATE");
   }
+  return { ok: false, error: "Database file does not exist or dbPath is missing" };
 }
 
 module.exports = {

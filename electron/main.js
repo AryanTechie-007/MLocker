@@ -5,6 +5,7 @@ const http = require("http");
 const crypto = require("crypto");
 const { registerIpcHandlers, setupNavigationGuards } = require("./ipc-handlers");
 const { initializeDatabase, shutdownDatabase } = require("./database");
+const { performShutdownSequence } = require("./shutdown");
 
 // Enforce single instance
 const gotTheLock = app.requestSingleInstanceLock();
@@ -302,22 +303,25 @@ app.on("window-all-closed", () => {
   }
 });
 
-app.on("before-quit", () => {
-  if (nextServer) {
-    try {
-      nextServer.close();
-      console.log("[Media Locker] Next.js server closed.");
-    } catch (err) {
-      console.error("[Media Locker] Error closing server:", err);
-    }
-  }
+let isQuitting = false;
 
-  if (databaseConfig && databaseConfig.dbPath) {
-    try {
-      shutdownDatabase(databaseConfig.dbPath);
-      console.log("[Media Locker] Database WAL checkpointed successfully on shutdown.");
-    } catch (err) {
-      console.error("[Media Locker] Error checkpointing database on shutdown:", err);
-    }
+app.on("before-quit", async (event) => {
+  if (isQuitting) return;
+  event.preventDefault();
+  isQuitting = true;
+
+  try {
+    await performShutdownSequence({
+      nextServer,
+      databaseConfig,
+      prisma: globalThis.prisma,
+      drainTimeoutMs: 3000,
+      logger: console.log,
+      errorLogger: console.error,
+    });
+  } catch (err) {
+    console.error("[Media Locker] Error during graceful shutdown:", err);
+  } finally {
+    app.quit();
   }
 });
