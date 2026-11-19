@@ -76,25 +76,30 @@ jobs:
       - name: Build Next.js & package Electron application
         run: npm run electron:pack
 
-      - name: Verify clean-install packaged Electron runtime
+      - name: Verify clean-install packaged Electron runtime & graceful shutdown
         shell: powershell
         run: |
           $cleanDir = Join-Path $env:TEMP ("mlocker-ci-pack-" + [System.Guid]::NewGuid().ToString())
           New-Item -ItemType Directory -Path $cleanDir | Out-Null
           $exePath = Resolve-Path "dist\win-unpacked\Media Locker.exe"
-          Write-Host "Launching packaged executable with clean userData at $cleanDir"
+          Write-Host "Launching packaged executable with clean userData at $cleanDir in test mode"
 
-          $proc = Start-Process -FilePath $exePath -ArgumentList "--user-data-dir=`"$cleanDir`"" -PassThru
-          Start-Sleep -Seconds 6
+          $proc = Start-Process -FilePath $exePath -ArgumentList "--user-data-dir=`"$cleanDir`" --test-mode" -PassThru
 
-          if ($proc.HasExited) {
-            throw "Packaged Electron app terminated prematurely (exit code: $($proc.ExitCode))"
+          $timeoutSec = 15
+          $elapsed = 0
+          $dbPath = Join-Path $cleanDir "mlocker.db"
+          while (-not (Test-Path $dbPath) -and $elapsed -lt $timeoutSec) {
+            Start-Sleep -Seconds 1
+            $elapsed++
+            if ($proc.HasExited) {
+              throw "Packaged Electron app terminated prematurely (exit code: $($proc.ExitCode))"
+            }
           }
 
-          $dbPath = Join-Path $cleanDir "mlocker.db"
           if (-not (Test-Path $dbPath)) {
             Stop-Process -Id $proc.Id -Force
-            throw "Expected provisioned database was not created at $dbPath"
+            throw "Expected provisioned database was not created at $dbPath within $timeoutSec seconds"
           }
 
           # Verify database schema, version, and integrity using node:sqlite
@@ -128,10 +133,34 @@ jobs:
           node -e "$inspectScript"
           $nodeExit = $LASTEXITCODE
 
-          Stop-Process -Id $proc.Id -Force
-          Remove-Item -Recurse -Force $cleanDir -ErrorAction SilentlyContinue
-
           if ($nodeExit -ne 0) {
-            throw "Database verification script exited with code $nodeExit"
+            Stop-Process -Id $proc.Id -Force
+            Remove-Item -Recurse -Force $cleanDir -ErrorAction SilentlyContinue
+            throw "Database verification script failed with code $nodeExit"
           }
-          Write-Host "Packaged Electron runtime verification on Windows passed successfully."
+
+          # Trigger graceful application exit through narrowly-scoped test signal
+          Write-Host "Database verification successful. Triggering graceful application shutdown..."
+          $signalFile = Join-Path $cleanDir "shutdown.signal"
+          New-Item -ItemType File -Path $signalFile -Force | Out-Null
+
+          # Wait for the Electron process to terminate within a reasonable timeout
+          Write-Host "Waiting up to 15 seconds for Electron process to terminate gracefully..."
+          $exitedGracefully = $proc.WaitForExit(15000)
+
+          if (-not $exitedGracefully) {
+            Write-Host "Graceful shutdown timed out after 15 seconds. Force terminating process as cleanup..."
+            Stop-Process -Id $proc.Id -Force
+            Remove-Item -Recurse -Force $cleanDir -ErrorAction SilentlyContinue
+            throw "Graceful shutdown verification failed: Electron process did not terminate within 15 seconds"
+          }
+
+          Write-Host "Electron process terminated. Exit code: $($proc.ExitCode)"
+          if ($proc.ExitCode -ne 0) {
+            Remove-Item -Recurse -Force $cleanDir -ErrorAction SilentlyContinue
+            throw "Graceful shutdown verification failed: process exited with abnormal exit code $($proc.ExitCode)"
+          }
+
+          Write-Host "Graceful shutdown verified: application closed cleanly with exit code 0."
+          Remove-Item -Recurse -Force $cleanDir -ErrorAction SilentlyContinue
+          Write-Host "Packaged Electron runtime & graceful shutdown verification on Windows passed successfully."

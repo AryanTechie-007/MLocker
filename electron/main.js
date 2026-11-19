@@ -262,6 +262,23 @@ app.on("second-instance", () => {
 
 // Application startup
 app.whenReady().then(async () => {
+  // Test-scoped graceful shutdown trigger for automated CI / testing environments
+  if (process.env.MLOCKER_TEST_MODE === "1" || process.argv.includes("--test-mode")) {
+    const signalFile = path.join(app.getPath("userData"), "shutdown.signal");
+    const signalTimer = setInterval(() => {
+      try {
+        if (fs.existsSync(signalFile)) {
+          clearInterval(signalTimer);
+          console.log("[Media Locker Test] Graceful shutdown signal detected. Exiting application...");
+          try {
+            fs.unlinkSync(signalFile);
+          } catch {}
+          app.quit();
+        }
+      } catch {}
+    }, 250);
+  }
+
   try {
     setupDatabase();
   } catch (err) {
@@ -322,6 +339,6 @@ app.on("before-quit", async (event) => {
   } catch (err) {
     console.error("[Media Locker] Error during graceful shutdown:", err);
   } finally {
-    app.quit();
+    app.exit(0);
   }
 });

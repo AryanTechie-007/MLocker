@@ -145,6 +145,84 @@ function normalizeType(type) {
 }
 
 /**
+ * Normalizes an SQLite default value expression for semantic equivalence comparison.
+ *
+ * Handles:
+ * - Stripping outer parentheses: e.g. `(0)` -> `0`, `('plan_to_consume')` -> `'plan_to_consume'`
+ * - Trimming whitespace
+ * - Stripping outer single or double quotes for string literals
+ * - Boolean / integer equivalence: `false`, `'false'`, `0`, `'0'` -> `0`; `true`, `'true'`, `1`, `'1'` -> `1`
+ * - Timestamp expressions: `CURRENT_TIMESTAMP`, `datetime('now')`, etc.
+ *
+ * @param {any} val
+ * @returns {string | null}
+ */
+function normalizeDefaultValue(val) {
+  if (val === null || val === undefined) return null;
+  let str = String(val).trim();
+
+  // Strip wrapping parentheses: e.g. ((0)) -> 0, ('plan_to_consume') -> 'plan_to_consume'
+  while (str.startsWith("(") && str.endsWith(")") && str.length >= 2) {
+    str = str.slice(1, -1).trim();
+  }
+
+  // Boolean / integer equivalence for boolean flags
+  const lower = str.toLowerCase();
+  if (
+    lower === "false" ||
+    lower === "'false'" ||
+    lower === '"false"' ||
+    lower === "0" ||
+    lower === "'0'"
+  ) {
+    return "0";
+  }
+  if (
+    lower === "true" ||
+    lower === "'true'" ||
+    lower === '"true"' ||
+    lower === "1" ||
+    lower === "'1'"
+  ) {
+    return "1";
+  }
+
+  // Timestamp equivalence
+  const upper = str.toUpperCase();
+  if (
+    upper === "CURRENT_TIMESTAMP" ||
+    upper === "'CURRENT_TIMESTAMP'" ||
+    upper === "DATETIME('NOW')" ||
+    upper === "DATETIME('NOW','LOCALTIME')"
+  ) {
+    return "CURRENT_TIMESTAMP";
+  }
+
+  // String literal: strip outer single/double quotes
+  if (
+    (str.startsWith("'") && str.endsWith("'") && str.length >= 2) ||
+    (str.startsWith('"') && str.endsWith('"') && str.length >= 2)
+  ) {
+    return str.slice(1, -1);
+  }
+
+  return str;
+}
+
+/**
+ * Checks whether the actual SQLite default is equivalent to the expected default.
+ *
+ * @param {any} expected
+ * @param {any} actual
+ * @returns {boolean}
+ */
+function areDefaultsEquivalent(expected, actual) {
+  if (expected === undefined) return true;
+  if (actual === null || actual === undefined) return false;
+  return normalizeDefaultValue(expected) === normalizeDefaultValue(actual);
+}
+
+/**
  * Returns list of user tables in the SQLite database.
  */
 function getDatabaseTables(db) {
@@ -327,13 +405,35 @@ function validateLegacySchema(db) {
         if (!incompatibleColumns[tableName]) incompatibleColumns[tableName] = [];
         incompatibleColumns[tableName].push(`${bCol.name} (must be PRIMARY KEY)`);
         reasons.push(`Column '${tableName}.${bCol.name}' must be PRIMARY KEY`);
+      } else if (!bCol.pk && eCol.pk) {
+        if (!incompatibleColumns[tableName]) incompatibleColumns[tableName] = [];
+        incompatibleColumns[tableName].push(`${bCol.name} (must not be PRIMARY KEY)`);
+        reasons.push(`Column '${tableName}.${bCol.name}' must not be PRIMARY KEY`);
       }
 
-      // Verify Nullability on required columns
-      if (bCol.required && bCol.notnull && !eCol.notnull) {
+      // Verify Nullability for every existing column (both required and optional)
+      if (bCol.notnull && !eCol.notnull) {
         if (!incompatibleColumns[tableName]) incompatibleColumns[tableName] = [];
         incompatibleColumns[tableName].push(`${bCol.name} (must be NOT NULL)`);
         reasons.push(`Column '${tableName}.${bCol.name}' must be NOT NULL`);
+      } else if (!bCol.notnull && eCol.notnull) {
+        if (!incompatibleColumns[tableName]) incompatibleColumns[tableName] = [];
+        incompatibleColumns[tableName].push(`${bCol.name} (must be nullable)`);
+        reasons.push(`Column '${tableName}.${bCol.name}' must be nullable (cannot be NOT NULL)`);
+      }
+
+      // Verify Default value wherever a default is specified in baseline
+      if (bCol.dflt !== undefined) {
+        if (!areDefaultsEquivalent(bCol.dflt, eCol.dflt_value)) {
+          if (!incompatibleColumns[tableName]) incompatibleColumns[tableName] = [];
+          const actualDesc = eCol.dflt_value === null ? "no default" : eCol.dflt_value;
+          incompatibleColumns[tableName].push(
+            `${bCol.name} (expected default ${bCol.dflt}, got ${actualDesc})`
+          );
+          reasons.push(
+            `Column '${tableName}.${bCol.name}' default mismatch: expected ${bCol.dflt}, got ${actualDesc}`
+          );
+        }
       }
 
       // Verify compatible type
@@ -567,4 +667,6 @@ module.exports = {
   inspectDatabaseSchema,
   validateLegacySchema,
   upgradeSupportedLegacySchema,
+  normalizeDefaultValue,
+  areDefaultsEquivalent,
 };

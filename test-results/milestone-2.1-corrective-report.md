@@ -11,21 +11,28 @@
 Milestone 2.1 addressed the database lifecycle findings identified during an independent review of Milestone 2, with subsequent hardening performed during the Milestone 2.1 Follow-up Review. All corrections preserve the existing architectural foundation (Next.js 16, React 19, Electron 45, SQLite with `node:sqlite`, and Prisma ORM) while resolving schema discrepancies, unsafe failure modes, test pollution, transaction atomicity gaps, and cross-platform CI coverage.
 
 ### Key Outcomes:
-1. **Comprehensive Structural Legacy Validation:** Enhanced `electron/database/schema-validator.js` to strictly enforce foreign-key relationships (`on_delete: CASCADE`), primary-key definitions (`id` PK), column types, nullability, and required unique constraints (`User.email`, `CollectionItem(collectionId, userMediaId)`) before classifying any database as `EXACT_BASELINE`. Databases with missing FKs, wrong cascade rules, or missing uniqueness constraints are rejected as `UNSUPPORTED` with zero modifications to existing records. Supported legacy databases (with intact FKs and core columns, but missing optional columns) remain safely upgradeable.
+1. **Comprehensive Structural Legacy Validation:** Enhanced `electron/database/schema-validator.js` to strictly enforce foreign-key relationships (`on_delete: CASCADE`), primary-key definitions (`id` PK), column types, expected nullability for every column (both required and optional), and expected defaults wherever specified (`status: 'plan_to_consume'`, `isFavorite: 0`, `order: 0`) accounting for equivalent SQLite representations (`false`, `'false'`, `0`, `'0'`, `(0)`, `(false)`, strings with/without quotes/parens, timestamps) before classifying any database as `EXACT_BASELINE`. Databases with incorrect defaults, incorrect nullability (e.g. `isFavorite` declared nullable or `rating` declared NOT NULL), missing FKs, wrong cascade rules, or missing uniqueness constraints are rejected as `UNSUPPORTED` with zero modifications to existing records. Supported legacy databases that legitimately omit optional columns remain safely upgradeable.
 2. **Atomic Migration Metadata Recording:** Removed error-swallowing from `recordPrismaMigration()` in `electron/database/migrator.js`. Any failure in recording metadata in `_prisma_migrations` now throws `MigrationError`, which triggers an immediate `ROLLBACK` of the surrounding transaction, guaranteeing strict atomicity between schema migrations, `PRAGMA user_version`, and Prisma metadata.
 3. **Single Migration Source of Truth:** Unified the Electron embedded migration runner with the authoritative Prisma migration file (`prisma/migrations/20261119000000_init/migration.sql`). Resolved the divergent `updatedAt` default (`DATETIME NOT NULL`, matching Prisma's schema contract), eliminated divergent `CREATE TABLE IF NOT EXISTS` clauses, and replaced fabricated migration name hashes with genuine SHA-256 checksums matching Prisma CLI format.
 4. **Fail-Safe Backup & Recovery:** Updated `checkpointDatabase()` to accurately return `{ ok, busy, log, checkpointed, error }`. `createDatabaseBackup()` now refuses to copy the database file if a required checkpoint fails. Pre-migration backup failure halts migration immediately to protect existing data. Restoration now stages the snapshot into a temporary file, verifies its integrity, safely preserves original files, replaces the target, cleans up auxiliary WAL/SHM files, and rolls back if restoration fails at any point.
 5. **Complete Test Database Isolation:** Removed `prisma/dev.db` from `vitest.config.ts`. Implemented `tests/setup.ts` which provisions a unique, temporary SQLite database in `os.tmpdir()` per test worker, pre-populates the baseline schema, and automatically cleans up on completion. Confirmed that `prisma/dev.db` file size, modification timestamp, and SHA-256 checksum are 100% untouched during test runs.
-6. **Strict Electron Shutdown Sequencing:** Created `electron/shutdown.js` and wired it to `app.on("before-quit")` with `event.preventDefault()`. Enforced strict sequential teardown: (1) stop accepting new HTTP requests, (2) drain active HTTP connections with timeout, (3) close Next.js server, (4) disconnect Prisma Client connection pool, (5) execute SQLite WAL checkpoint (TRUNCATE) only after database activity has ceased, and (6) report checkpoint outcomes accurately without claiming false success when skipped or failed.
-7. **Cross-Platform Electron CI Coverage:** Added a dedicated `electron-windows` job to `.github/workflows/ci.yml` that builds the application, packages the Windows binary via `electron-builder --dir`, executes it against a clean isolated `--user-data-dir`, verifies automatic database provisioning, checks `PRAGMA user_version = 1`, verifies `PRAGMA integrity_check = ok`, verifies all required tables, and terminates cleanly.
+6. **Strict Electron Shutdown Sequencing & Verified Graceful Shutdown:** Created `electron/shutdown.js` and wired it to `app.on("before-quit")` with `event.preventDefault()`. Enforced strict sequential teardown: (1) stop accepting new HTTP requests, (2) drain active HTTP connections with timeout, (3) close Next.js server, (4) disconnect Prisma Client connection pool, (5) execute SQLite WAL checkpoint (TRUNCATE) only after database activity has ceased, and (6) report checkpoint outcomes accurately without claiming false success when skipped or failed. Calling `app.exit(0)` upon teardown completion guarantees process exit without dangling background loops.
+7. **Cross-Platform Electron CI with Graceful Shutdown Verification:** Added a dedicated `electron-windows` job to `.github/workflows/ci.yml` that builds the application, packages the Windows binary via `electron-builder --dir`, executes it against a clean isolated `--user-data-dir`, verifies automatic database provisioning, checks `PRAGMA user_version = 1`, verifies `PRAGMA integrity_check = ok`, verifies all required tables, triggers graceful shutdown via a narrowly scoped test signal, waits for termination within a 15-second timeout, verifies exit code 0, and only force-terminates as cleanup if graceful shutdown times out.
 
 ---
 
 ## 2. Issues Discovered and Before/After Behavior
 
-### Issue 1: Legacy Database Structural Validation & Foreign Key Enforcment
-- **Before:** `schema-validator.js` inspected column presence but did not validate foreign key definitions, cascade rules, primary key flags, nullability, or unique index presence. An existing database missing foreign keys or unique constraints could be mistakenly classified as `EXACT_BASELINE` or `SUPPORTED_LEGACY`.
-- **After:** `schema-validator.js` enforces `BASELINE_FOREIGN_KEYS` (`UserMedia.userId -> User.id ON DELETE CASCADE`, `Collection.userId -> User.id ON DELETE CASCADE`, `CollectionItem` FKs), `BASELINE_INDEXES` (unique constraints on `User.email` and `CollectionItem(collectionId, userMediaId)`), primary key definitions, and column nullability. Databases failing foreign key or unique constraint checks are classified as `UNSUPPORTED`. The migration runner rejects them safely without modifying existing tables or data.
+### Issue 1: Legacy Database Structural Validation & Comprehensive Column Enforcement
+- **Before:** `schema-validator.js` inspected column presence but did not validate foreign key definitions, cascade rules, primary key flags, nullability on optional columns, or expected defaults. An existing database missing foreign keys, unique constraints, having wrong column defaults (e.g. `status` default `'active'`), or invalid nullability (`isFavorite` nullable or `rating` NOT NULL) could be mistakenly classified as `EXACT_BASELINE` or `SUPPORTED_LEGACY`.
+- **After:** `schema-validator.js` strictly enforces:
+  1. `BASELINE_FOREIGN_KEYS` (`UserMedia.userId -> User.id ON DELETE CASCADE`, `Collection.userId -> User.id ON DELETE CASCADE`, `CollectionItem` FKs).
+  2. `BASELINE_INDEXES` (unique constraints on `User.email` and `CollectionItem(collectionId, userMediaId)`).
+  3. Primary key definitions.
+  4. Expected nullability for every column (both required and optional; flags `isFavorite` if nullable or `rating` if NOT NULL).
+  5. Expected defaults wherever specified (`status: 'plan_to_consume'`, `isFavorite: 0`, `order: 0`), handling SQLite equivalent representations (`false`, `'false'`, `0`, `'0'`, `(0)`, `(false)`, strings with/without quotes/parentheses, timestamps).
+  6. Supported legacy schemas that legitimately omit optional columns remain upgradeable.
+Databases failing foreign key, unique constraint, default, or nullability checks are classified as `UNSUPPORTED`. The migration runner rejects them safely without modifying existing tables or data.
 
 ### Issue 2: Migration Metadata Swallowing & Transaction Atomicity
 - **Before:** `recordPrismaMigration()` in `migrator.js` caught exceptions and only logged `console.warn`. If `_prisma_migrations` failed to insert (e.g. table schema corruption), the transaction committed anyway and the runner reported success with an unrecorded migration.
@@ -47,9 +54,9 @@ Milestone 2.1 addressed the database lifecycle findings identified during an ind
 - **Before:** `app.on("before-quit")` was synchronous, called asynchronous `nextServer.close()` without waiting for in-flight requests, did not disconnect Prisma, ran WAL checkpointing while database operations might still be active, and unconditionally logged success.
 - **After:** Implemented `electron/shutdown.js` and wired it to `before-quit` with `event.preventDefault()`. Enforces strict shutdown sequencing: (1) stop accepting new requests, (2) drain active HTTP connections with timeout, (3) close Next.js HTTP server, (4) call `prisma.$disconnect()`, (5) execute SQLite WAL checkpoint (TRUNCATE) only after database activity has ceased, and (6) return a comprehensive summary object with accurate error logging.
 
-### Issue 7: Absence of Packaged Windows Runtime in CI
-- **Before:** `.github/workflows/ci.yml` only ran Linux unit/integration tests and did not test the packaged Electron application on Windows.
-- **After:** Added `electron-windows` job running on `windows-latest`. Builds and packages the app with `npm run electron:pack`, launches the binary with a fresh isolated `--user-data-dir`, verifies automatic SQLite provisioning, checks schema version 1 and integrity `ok`, verifies table presence, and cleanly shuts down.
+### Issue 7: Absence of Packaged Windows Runtime in CI & Force Termination
+- **Before:** `.github/workflows/ci.yml` only ran Linux unit/integration tests and did not test the packaged Electron application on Windows. Early versions force-killed the process (`Stop-Process -Force`) instead of verifying graceful shutdown.
+- **After:** Added `electron-windows` job running on `windows-latest`. Builds and packages the app with `npm run electron:pack`, launches the binary with a fresh isolated `--user-data-dir` and test mode flag, verifies automatic SQLite provisioning, checks schema version 1 and integrity `ok`, verifies all baseline tables, triggers graceful shutdown via a narrowly-scoped test signal, waits for process exit with a 15-second timeout, verifies clean termination (`ExitCode: 0`), and only force-terminates as cleanup if graceful shutdown times out.
 
 ---
 
@@ -57,18 +64,18 @@ Milestone 2.1 addressed the database lifecycle findings identified during an ind
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `electron/database/schema-validator.js` | Modified | Structural validation of foreign keys, unique constraints, primary keys, types, and nullability. |
+| `electron/database/schema-validator.js` | Modified | Structural validation of foreign keys, unique constraints, primary keys, types, full nullability enforcement, and SQLite default equivalence (`normalizeDefaultValue`, `areDefaultsEquivalent`). |
 | `electron/database/migrator.js` | Modified | Atomic metadata recording (re-throws on failure to trigger transaction rollback). |
 | `electron/database/migrations.js` | Modified | Single-source migration loader, LF-normalized SHA-256 checksum, exact DDL alignment. |
 | `electron/database/backup.js` | Modified | Checkpoint result reporting, fail-safe backup creation, staged non-destructive restoration with rollback. |
 | `electron/database/lifecycle.js` | Modified | Abort migrations on failed pre-migration backup, propagate checkpoint status on shutdown. |
 | `electron/database/index.js` | Modified | Re-export schema validator functions. |
 | `electron/shutdown.js` | Created | Graceful shutdown sequencing engine (server drain -> server close -> Prisma disconnect -> WAL checkpoint). |
-| `electron/main.js` | Modified | Asynchronous `before-quit` handler with `performShutdownSequence`. |
-| `.github/workflows/ci.yml` | Modified | Added Windows packaged Electron runtime provisioning and validation job. |
+| `electron/main.js` | Modified | Asynchronous `before-quit` handler with `performShutdownSequence`, clean `app.exit(0)`, and test-scoped graceful shutdown signal listener. |
+| `.github/workflows/ci.yml` | Modified | Windows packaged Electron runtime provisioning, SQLite integrity check, and verified graceful shutdown job. |
 | `vitest.config.ts` | Modified | Removed `prisma/dev.db` from `test.env`, registered `setupFiles: ['./tests/setup.ts']`. |
 | `tests/setup.ts` | Created | Worker-isolated temporary SQLite database provisioning and teardown. |
-| `tests/database/legacy-compatibility.test.ts` | Modified | 8 tests including negative tests for missing FKs, missing unique indexes, wrong cascade rules, incompatible columns, and metadata rollback. |
+| `tests/database/legacy-compatibility.test.ts` | Modified | 15 tests including negative tests for missing FKs, missing unique indexes, wrong cascade rules, incompatible columns, metadata rollback, incorrect status default, incorrect isFavorite default, incorrect order default, optional column declared nullable, optional column declared NOT NULL, and supported legacy upgrade path. |
 | `tests/database/migration-consistency.test.ts` | Created | 5 tests for single-source migration DDL parity, `updatedAt` investigation, and authentic checksums. |
 | `tests/database/backup-failure-injection.test.ts` | Created | 7 tests for checkpoint failure, backup creation failure, corrupt file rejection, and restoration rollback. |
 | `tests/database/shutdown-sequencing.test.ts` | Created | 4 tests for shutdown order, request draining timeout, error reporting, and skipped checkpoints. |
@@ -80,8 +87,8 @@ Milestone 2.1 addressed the database lifecycle findings identified during an ind
 
 ### 4.1 Vitest Suite Summary
 Total test files: **14**  
-Total tests: **136**  
-Passed: **136**  
+Total tests: **143**  
+Passed: **143**  
 Failed: **0**  
 
 ```
@@ -92,7 +99,7 @@ Failed: **0**
  ✓ tests/database/shutdown-sequencing.test.ts (4 tests)
  ✓ tests/unit/unified-search.test.ts (17 tests)
  ✓ tests/database/backup-failure-injection.test.ts (7 tests)
- ✓ tests/database/legacy-compatibility.test.ts (8 tests)
+ ✓ tests/database/legacy-compatibility.test.ts (15 tests)
  ✓ tests/security/validation.test.ts (17 tests)
  ✓ tests/database/lifecycle.test.ts (16 tests)
  ✓ tests/unit/media-formatting.test.ts (5 tests)
@@ -101,6 +108,9 @@ Failed: **0**
  ✓ tests/security/tenant-isolation.test.ts (19 tests)
 
  Test Files  14 passed (14)
+      Tests  143 passed (143)
+   Duration  1.86s
+```
       Tests  136 passed (136)
    Duration  1.89s
 ```
@@ -127,20 +137,24 @@ Failed: **0**
 
 ---
 
-## 5. Packaged Electron Runtime Verification
+## 5. Packaged Electron Runtime & Graceful Shutdown Verification
 
 Packaging was executed via `electron-builder --dir` producing `dist/win-unpacked/Media Locker.exe`.
 
-### Clean Runtime Environment Test:
-- **Clean UserData Directory:** Isolated temporary directory in `$env:TEMP`
-- **Launch Command:** `Start-Process "dist\win-unpacked\Media Locker.exe" -ArgumentList "--user-data-dir=\"$cleanDir\""`
+### Clean Runtime Environment & Graceful Exit Test:
+- **Clean UserData Directory:** Isolated temporary directory in `$env:TEMP` (`mlocker-ci-pack-*`)
+- **Launch Command:** `Start-Process "dist\win-unpacked\Media Locker.exe" -ArgumentList "--user-data-dir=\"$cleanDir\" --test-mode" -PassThru`
 - **Runtime Process Status:** Started successfully.
-- **Provisioned Database File:** `mlocker.db` (69,632 bytes) created automatically inside the clean `userData` directory.
+- **Provisioned Database File:** `mlocker.db` (69,632 bytes) created automatically inside clean `userData` directory.
 - **Database Inspection Results:**
   - `PRAGMA user_version`: `1`
   - `PRAGMA integrity_check`: `ok`
   - Created Tables: `User`, `UserMedia`, `Collection`, `CollectionItem`, `_prisma_migrations`
-- **Clean Termination:** Process terminated safely, clean directory removed.
+- **Graceful Shutdown Mechanism:**
+  - Triggered by creating `shutdown.signal` inside the clean `userData` directory.
+  - Process detected signal, ran `performShutdownSequence()` (closed Next.js server, disconnected Prisma, checkpointed SQLite WAL TRUNCATE).
+  - Terminated cleanly with exit code `0` within timeout without requiring force-kill.
+  - Clean isolated directory removed after successful shutdown.
 
 ---
 

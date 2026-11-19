@@ -17,6 +17,8 @@ import {
 import {
   inspectDatabaseSchema,
   validateLegacySchema,
+  areDefaultsEquivalent,
+  normalizeDefaultValue,
 } from "../../electron/database/schema-validator";
 import { INIT_MIGRATION_SQL } from "../../electron/database/migrations";
 
@@ -472,4 +474,446 @@ describe("Milestone 2.1 — Legacy Database Structural Validation Suite", () => 
 
     db.close();
   });
+
+  // 9. Negative test: Incorrect status default
+  it("rejects as UNSUPPORTED and halts safely when UserMedia.status has an incorrect default", () => {
+    const db = new DatabaseSync(dbPath);
+    // Baseline tables and FKs, but UserMedia.status default is 'active' instead of 'plan_to_consume'
+    db.exec(`
+      CREATE TABLE "User" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "email" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE "UserMedia" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "userId" TEXT NOT NULL,
+        "mediaType" TEXT NOT NULL,
+        "title" TEXT NOT NULL,
+        "status" TEXT NOT NULL DEFAULT 'active',
+        "isFavorite" BOOLEAN NOT NULL DEFAULT false,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL,
+        CONSTRAINT "UserMedia_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE TABLE "Collection" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "userId" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL,
+        CONSTRAINT "Collection_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE TABLE "CollectionItem" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "collectionId" TEXT NOT NULL,
+        "userMediaId" TEXT NOT NULL,
+        "order" INTEGER NOT NULL DEFAULT 0,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "CollectionItem_collectionId_fkey" FOREIGN KEY ("collectionId") REFERENCES "Collection" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT "CollectionItem_userMediaId_fkey" FOREIGN KEY ("userMediaId") REFERENCES "UserMedia" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+      CREATE UNIQUE INDEX "CollectionItem_collectionId_userMediaId_key" ON "CollectionItem"("collectionId", "userMediaId");
+    `);
+
+    // Insert dummy record
+    db.prepare("INSERT INTO User (id, email) VALUES ('u_stat', 'status_test@test.local')").run();
+    db.prepare("INSERT INTO UserMedia (id, userId, mediaType, title, updatedAt) VALUES ('m_stat', 'u_stat', 'book', 'Dune', CURRENT_TIMESTAMP)").run();
+
+    const validation = validateLegacySchema(db);
+    expect(validation.type).toBe("UNSUPPORTED");
+    expect(validation.isCompatible).toBe(false);
+    expect(validation.reasons.some((r) => r.includes("UserMedia.status") && r.includes("default mismatch"))).toBe(true);
+
+    expect(() => {
+      runMigrations(db, { logger: () => {} });
+    }).toThrowError(MigrationError);
+
+    // Database remains untouched: user_version is 0 and records are unchanged
+    expect(getSchemaVersion(db)).toBe(0);
+    const media = db.prepare("SELECT * FROM UserMedia WHERE id = 'm_stat'").get() as any;
+    expect(media.status).toBe("active");
+
+    db.close();
+  });
+
+  // 10. Negative test: Incorrect isFavorite default
+  it("rejects as UNSUPPORTED and halts safely when UserMedia.isFavorite has an incorrect default (e.g. 1 / true)", () => {
+    const db = new DatabaseSync(dbPath);
+    // Baseline tables and FKs, but UserMedia.isFavorite default is 1 (true) instead of 0 (false)
+    db.exec(`
+      CREATE TABLE "User" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "email" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE "UserMedia" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "userId" TEXT NOT NULL,
+        "mediaType" TEXT NOT NULL,
+        "title" TEXT NOT NULL,
+        "status" TEXT NOT NULL DEFAULT 'plan_to_consume',
+        "isFavorite" BOOLEAN NOT NULL DEFAULT 1,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL,
+        CONSTRAINT "UserMedia_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE TABLE "Collection" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "userId" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL,
+        CONSTRAINT "Collection_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE TABLE "CollectionItem" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "collectionId" TEXT NOT NULL,
+        "userMediaId" TEXT NOT NULL,
+        "order" INTEGER NOT NULL DEFAULT 0,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "CollectionItem_collectionId_fkey" FOREIGN KEY ("collectionId") REFERENCES "Collection" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT "CollectionItem_userMediaId_fkey" FOREIGN KEY ("userMediaId") REFERENCES "UserMedia" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+      CREATE UNIQUE INDEX "CollectionItem_collectionId_userMediaId_key" ON "CollectionItem"("collectionId", "userMediaId");
+    `);
+
+    db.prepare("INSERT INTO User (id, email) VALUES ('u_fav', 'fav_test@test.local')").run();
+    db.prepare("INSERT INTO UserMedia (id, userId, mediaType, title, updatedAt) VALUES ('m_fav', 'u_fav', 'game', 'Hades', CURRENT_TIMESTAMP)").run();
+
+    const validation = validateLegacySchema(db);
+    expect(validation.type).toBe("UNSUPPORTED");
+    expect(validation.isCompatible).toBe(false);
+    expect(validation.reasons.some((r) => r.includes("UserMedia.isFavorite") && r.includes("default mismatch"))).toBe(true);
+
+    expect(() => {
+      runMigrations(db, { logger: () => {} });
+    }).toThrowError(MigrationError);
+
+    // Database remains untouched
+    expect(getSchemaVersion(db)).toBe(0);
+    const media = db.prepare("SELECT * FROM UserMedia WHERE id = 'm_fav'").get() as any;
+    expect(media.isFavorite).toBe(1);
+
+    db.close();
+  });
+
+  // 11. Negative test: Incorrect CollectionItem.order default
+  it("rejects as UNSUPPORTED and halts safely when CollectionItem.order has an incorrect default (e.g. 1 instead of 0)", () => {
+    const db = new DatabaseSync(dbPath);
+    // Baseline tables and FKs, but CollectionItem.order default is 1 instead of 0
+    db.exec(`
+      CREATE TABLE "User" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "email" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE "UserMedia" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "userId" TEXT NOT NULL,
+        "mediaType" TEXT NOT NULL,
+        "title" TEXT NOT NULL,
+        "status" TEXT NOT NULL DEFAULT 'plan_to_consume',
+        "isFavorite" BOOLEAN NOT NULL DEFAULT false,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL,
+        CONSTRAINT "UserMedia_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE TABLE "Collection" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "userId" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL,
+        CONSTRAINT "Collection_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE TABLE "CollectionItem" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "collectionId" TEXT NOT NULL,
+        "userMediaId" TEXT NOT NULL,
+        "order" INTEGER NOT NULL DEFAULT 1,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "CollectionItem_collectionId_fkey" FOREIGN KEY ("collectionId") REFERENCES "Collection" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT "CollectionItem_userMediaId_fkey" FOREIGN KEY ("userMediaId") REFERENCES "UserMedia" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+      CREATE UNIQUE INDEX "CollectionItem_collectionId_userMediaId_key" ON "CollectionItem"("collectionId", "userMediaId");
+    `);
+
+    db.prepare("INSERT INTO User (id, email) VALUES ('u_ord', 'order_test@test.local')").run();
+    db.prepare("INSERT INTO UserMedia (id, userId, mediaType, title, updatedAt) VALUES ('m_ord', 'u_ord', 'movie', 'Interstellar', CURRENT_TIMESTAMP)").run();
+    db.prepare("INSERT INTO Collection (id, userId, name, updatedAt) VALUES ('c_ord', 'u_ord', 'Sci-Fi', CURRENT_TIMESTAMP)").run();
+    db.prepare("INSERT INTO CollectionItem (id, collectionId, userMediaId) VALUES ('ci_ord', 'c_ord', 'm_ord')").run();
+
+    const validation = validateLegacySchema(db);
+    expect(validation.type).toBe("UNSUPPORTED");
+    expect(validation.isCompatible).toBe(false);
+    expect(validation.reasons.some((r) => r.includes("CollectionItem.order") && r.includes("default mismatch"))).toBe(true);
+
+    expect(() => {
+      runMigrations(db, { logger: () => {} });
+    }).toThrowError(MigrationError);
+
+    // Database remains untouched
+    expect(getSchemaVersion(db)).toBe(0);
+    const item = db.prepare("SELECT * FROM CollectionItem WHERE id = 'ci_ord'").get() as any;
+    expect(item.order).toBe(1);
+
+    db.close();
+  });
+
+  // 12. Negative test: Optional column incorrectly declared nullable
+  it("rejects as UNSUPPORTED when an optional column that must be NOT NULL is declared nullable", () => {
+    const db = new DatabaseSync(dbPath);
+    // UserMedia.isFavorite is present but declared nullable (missing NOT NULL)
+    db.exec(`
+      CREATE TABLE "User" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "email" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE "UserMedia" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "userId" TEXT NOT NULL,
+        "mediaType" TEXT NOT NULL,
+        "title" TEXT NOT NULL,
+        "status" TEXT NOT NULL DEFAULT 'plan_to_consume',
+        "isFavorite" BOOLEAN DEFAULT false,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL,
+        CONSTRAINT "UserMedia_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE TABLE "Collection" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "userId" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL,
+        CONSTRAINT "Collection_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE TABLE "CollectionItem" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "collectionId" TEXT NOT NULL,
+        "userMediaId" TEXT NOT NULL,
+        "order" INTEGER NOT NULL DEFAULT 0,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "CollectionItem_collectionId_fkey" FOREIGN KEY ("collectionId") REFERENCES "Collection" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT "CollectionItem_userMediaId_fkey" FOREIGN KEY ("userMediaId") REFERENCES "UserMedia" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+      CREATE UNIQUE INDEX "CollectionItem_collectionId_userMediaId_key" ON "CollectionItem"("collectionId", "userMediaId");
+    `);
+
+    db.prepare("INSERT INTO User (id, email) VALUES ('u_null', 'null_test@test.local')").run();
+    db.prepare("INSERT INTO UserMedia (id, userId, mediaType, title, isFavorite, updatedAt) VALUES ('m_null', 'u_null', 'movie', 'Arrival', NULL, CURRENT_TIMESTAMP)").run();
+
+    const validation = validateLegacySchema(db);
+    expect(validation.type).toBe("UNSUPPORTED");
+    expect(validation.isCompatible).toBe(false);
+    expect(validation.reasons.some((r) => r.includes("UserMedia.isFavorite") && r.includes("must be NOT NULL"))).toBe(true);
+
+    expect(() => {
+      runMigrations(db, { logger: () => {} });
+    }).toThrowError(MigrationError);
+
+    // Database remains untouched
+    expect(getSchemaVersion(db)).toBe(0);
+    const media = db.prepare("SELECT * FROM UserMedia WHERE id = 'm_null'").get() as any;
+    expect(media.isFavorite).toBeNull();
+
+    db.close();
+  });
+
+  // 13. Negative test: Optional column incorrectly declared NOT NULL
+  it("rejects as UNSUPPORTED when an optional column that must be nullable is declared NOT NULL", () => {
+    const db = new DatabaseSync(dbPath);
+    // UserMedia.rating is declared NOT NULL, but baseline requires it to be nullable
+    db.exec(`
+      CREATE TABLE "User" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "email" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE "UserMedia" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "userId" TEXT NOT NULL,
+        "mediaType" TEXT NOT NULL,
+        "title" TEXT NOT NULL,
+        "rating" REAL NOT NULL,
+        "status" TEXT NOT NULL DEFAULT 'plan_to_consume',
+        "isFavorite" BOOLEAN NOT NULL DEFAULT false,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL,
+        CONSTRAINT "UserMedia_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE TABLE "Collection" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "userId" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL,
+        CONSTRAINT "Collection_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE TABLE "CollectionItem" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "collectionId" TEXT NOT NULL,
+        "userMediaId" TEXT NOT NULL,
+        "order" INTEGER NOT NULL DEFAULT 0,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "CollectionItem_collectionId_fkey" FOREIGN KEY ("collectionId") REFERENCES "Collection" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT "CollectionItem_userMediaId_fkey" FOREIGN KEY ("userMediaId") REFERENCES "UserMedia" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+      CREATE UNIQUE INDEX "CollectionItem_collectionId_userMediaId_key" ON "CollectionItem"("collectionId", "userMediaId");
+    `);
+
+    db.prepare("INSERT INTO User (id, email) VALUES ('u_notnull', 'notnull_test@test.local')").run();
+    db.prepare("INSERT INTO UserMedia (id, userId, mediaType, title, rating, updatedAt) VALUES ('m_notnull', 'u_notnull', 'tv', 'Dark', 9.5, CURRENT_TIMESTAMP)").run();
+
+    const validation = validateLegacySchema(db);
+    expect(validation.type).toBe("UNSUPPORTED");
+    expect(validation.isCompatible).toBe(false);
+    expect(validation.reasons.some((r) => r.includes("UserMedia.rating") && r.includes("must be nullable"))).toBe(true);
+
+    expect(() => {
+      runMigrations(db, { logger: () => {} });
+    }).toThrowError(MigrationError);
+
+    // Database remains untouched
+    expect(getSchemaVersion(db)).toBe(0);
+    const media = db.prepare("SELECT * FROM UserMedia WHERE id = 'm_notnull'").get() as any;
+    expect(media.rating).toBe(9.5);
+
+    db.close();
+  });
+
+  // 14. Valid supported legacy schema that legitimately omits optional columns remains upgradeable
+  it("detects and upgrades a supported legacy schema omitting optional status, order, and other non-breaking columns", () => {
+    const db = new DatabaseSync(dbPath);
+    // Legacy schema with core required fields, valid FKs, and unique index on email,
+    // but legitimately omitting optional columns (UserMedia.status, isFavorite, rating, CollectionItem.order, etc.)
+    db.exec(`
+      CREATE TABLE "User" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "name" TEXT,
+        "email" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE "UserMedia" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "userId" TEXT NOT NULL,
+        "mediaType" TEXT NOT NULL,
+        "title" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL,
+        CONSTRAINT "UserMedia_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE TABLE "Collection" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "userId" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL,
+        CONSTRAINT "Collection_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE TABLE "CollectionItem" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "collectionId" TEXT NOT NULL,
+        "userMediaId" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "CollectionItem_collectionId_fkey" FOREIGN KEY ("collectionId") REFERENCES "Collection" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT "CollectionItem_userMediaId_fkey" FOREIGN KEY ("userMediaId") REFERENCES "UserMedia" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+      CREATE UNIQUE INDEX "CollectionItem_collectionId_userMediaId_key" ON "CollectionItem"("collectionId", "userMediaId");
+    `);
+
+    // Pre-populate records
+    db.prepare("INSERT INTO User (id, email, name) VALUES ('u_upg', 'upgradeable@test.local', 'Upgradeable User')").run();
+    db.prepare("INSERT INTO UserMedia (id, userId, mediaType, title, updatedAt) VALUES ('m_upg', 'u_upg', 'anime', 'Frieren', CURRENT_TIMESTAMP)").run();
+    db.prepare("INSERT INTO Collection (id, userId, name, updatedAt) VALUES ('c_upg', 'u_upg', 'Anime List', CURRENT_TIMESTAMP)").run();
+    db.prepare("INSERT INTO CollectionItem (id, collectionId, userMediaId) VALUES ('ci_upg', 'c_upg', 'm_upg')").run();
+
+    // Verify SUPPORTED_LEGACY classification
+    const validation = validateLegacySchema(db);
+    expect(validation.type).toBe("SUPPORTED_LEGACY");
+    expect(validation.isCompatible).toBe(true);
+    expect(validation.missingOptionalColumns.UserMedia).toContain("status");
+    expect(validation.missingOptionalColumns.UserMedia).toContain("isFavorite");
+    expect(validation.missingOptionalColumns.CollectionItem).toContain("order");
+
+    // Execute migration runner
+    const result = runMigrations(db, { logger: () => {} });
+    expect(result.initialVersion).toBe(0);
+    expect(result.finalVersion).toBe(1);
+    expect(getSchemaVersion(db)).toBe(1);
+
+    // Verify existing records are 100% intact
+    const user = db.prepare("SELECT * FROM User WHERE id = 'u_upg'").get() as any;
+    expect(user.name).toBe("Upgradeable User");
+    expect(user.email).toBe("upgradeable@test.local");
+
+    const media = db.prepare("SELECT * FROM UserMedia WHERE id = 'm_upg'").get() as any;
+    expect(media.title).toBe("Frieren");
+    expect(media.status).toBe("plan_to_consume"); // Safe default added by upgrade
+    expect(media.isFavorite).toBe(0); // Safe default added by upgrade
+
+    const item = db.prepare("SELECT * FROM CollectionItem WHERE id = 'ci_upg'").get() as any;
+    expect(item.order).toBe(0); // Safe default added by upgrade
+
+    // Verify new columns can be mutated cleanly
+    db.prepare("UPDATE UserMedia SET status = 'completed', rating = 10, isFavorite = 1 WHERE id = 'm_upg'").run();
+    const updatedMedia = db.prepare("SELECT * FROM UserMedia WHERE id = 'm_upg'").get() as any;
+    expect(updatedMedia.status).toBe("completed");
+    expect(updatedMedia.rating).toBe(10);
+    expect(updatedMedia.isFavorite).toBe(1);
+
+    // Integrity check
+    const integrity = db.prepare("PRAGMA integrity_check").all() as any[];
+    expect(integrity[0].integrity_check).toBe("ok");
+
+    db.close();
+  });
+
+  // 15. Unit tests for SQLite default representation equivalence
+  it("correctly identifies SQLite equivalent defaults across booleans, numbers, strings, and expressions", () => {
+    // Strings
+    expect(areDefaultsEquivalent("'plan_to_consume'", "'plan_to_consume'")).toBe(true);
+    expect(areDefaultsEquivalent("'plan_to_consume'", "('plan_to_consume')")).toBe(true);
+    expect(areDefaultsEquivalent("'plan_to_consume'", "plan_to_consume")).toBe(true);
+    expect(areDefaultsEquivalent("'plan_to_consume'", "'active'")).toBe(false);
+    expect(areDefaultsEquivalent("'plan_to_consume'", null)).toBe(false);
+
+    // Booleans
+    expect(areDefaultsEquivalent("0", "false")).toBe(true);
+    expect(areDefaultsEquivalent("0", "'false'")).toBe(true);
+    expect(areDefaultsEquivalent("0", "0")).toBe(true);
+    expect(areDefaultsEquivalent("0", "'0'")).toBe(true);
+    expect(areDefaultsEquivalent("0", "(0)")).toBe(true);
+    expect(areDefaultsEquivalent("0", "(false)")).toBe(true);
+    expect(areDefaultsEquivalent("0", "1")).toBe(false);
+    expect(areDefaultsEquivalent("0", "true")).toBe(false);
+    expect(areDefaultsEquivalent("0", null)).toBe(false);
+
+    // Integers
+    expect(areDefaultsEquivalent("0", "0")).toBe(true);
+    expect(areDefaultsEquivalent("0", 0)).toBe(true);
+    expect(areDefaultsEquivalent("0", "(0)")).toBe(true);
+    expect(areDefaultsEquivalent("0", "1")).toBe(false);
+    expect(areDefaultsEquivalent("0", 1)).toBe(false);
+    expect(areDefaultsEquivalent("0", null)).toBe(false);
+
+    // Timestamps
+    expect(areDefaultsEquivalent("CURRENT_TIMESTAMP", "CURRENT_TIMESTAMP")).toBe(true);
+    expect(areDefaultsEquivalent("CURRENT_TIMESTAMP", "datetime('now')")).toBe(true);
+    expect(areDefaultsEquivalent("CURRENT_TIMESTAMP", "(CURRENT_TIMESTAMP)")).toBe(true);
+
+    // Normalizer directly
+    expect(normalizeDefaultValue("((0))")).toBe("0");
+    expect(normalizeDefaultValue("'custom'")).toBe("custom");
+    expect(normalizeDefaultValue(null)).toBeNull();
+  });
 });
+
