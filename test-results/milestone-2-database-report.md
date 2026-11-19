@@ -161,6 +161,8 @@ All local and automated checks were executed and verified:
 | **Prisma Migration Status** | `npx prisma migrate status` | **Up to date** (1 migration applied) |
 | **Next.js Production Build** | `npm run build` | **Compiled successfully** in 13.1s |
 | **Electron Packaging Check** | `npx electron-builder --dir` | **Success** (clean package output without bundled developer DB) |
+| **Verified Commit SHA** | [`8c12fe489a4d64b86fa207a28dab326883700286`](https://github.com/AryanTechie-007/MLocker/commit/8c12fe489a4d64b86fa207a28dab326883700286) | **Pushed to `main`** |
+| **GitHub Actions CI Run** | [Run 44532724671](https://github.com/AryanTechie-007/MLocker/actions/runs/44532724671) | **`status: completed` / `conclusion: success`** |
 
 ---
 
