@@ -40,6 +40,26 @@ export default function AddMediaModal({
   const [totalChapters, setTotalChapters] = useState(mediaItem?.totalChapters ? String(mediaItem.totalChapters) : "");
   const [hoursPlayed, setHoursPlayed] = useState("");
 
+  // Reset form during render when modal opens or selected item changes
+  const [prevKey, setPrevKey] = useState<string>("");
+  const currentKey = `${mediaItem?.externalId || mediaItem?.title || "manual"}-${isOpen}`;
+  if (isOpen && currentKey !== prevKey) {
+    setPrevKey(currentKey);
+    setMediaType(mediaItem?.mediaType || defaultType);
+    setTitle(mediaItem?.title || "");
+    setPosterUrl(mediaItem?.posterUrl || "");
+    setYear(mediaItem?.year ? String(mediaItem.year) : "");
+    setManualGenres("");
+    setStatus("plan_to_consume");
+    setRating("");
+    setReview("");
+    setWatchedEpisodes("");
+    setTotalEpisodes(mediaItem?.totalEpisodes ? String(mediaItem.totalEpisodes) : "");
+    setReadChapters("");
+    setTotalChapters(mediaItem?.totalChapters ? String(mediaItem.totalChapters) : "");
+    setHoursPlayed("");
+  }
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {

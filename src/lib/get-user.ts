@@ -1,42 +1,19 @@
 import { auth } from "./auth";
-import { prisma } from "./prisma";
-
-export const GUEST_EMAIL = "guest@medialocker.local";
 
 /**
- * Retrieves the authenticated user's ID or creates/returns the fallback guest user ID.
- */
-export async function getOrCreateUserId(): Promise<string | null> {
-  const session = await auth();
-  if (session?.user?.id) {
-    return session.user.id;
-  }
-
-  // Fallback guest user for effortless local usage
-  const guest = await prisma.user.upsert({
-    where: { email: GUEST_EMAIL },
-    update: {},
-    create: {
-      name: "Guest Explorer",
-      email: GUEST_EMAIL,
-    },
-  });
-
-  return guest.id;
-}
-
-/**
- * Retrieves the authenticated user's ID or looks up the guest user ID without creating one.
+ * Retrieves the authenticated user's ID from the session.
+ * Returns null if the request is unauthenticated.
+ * Strictly adheres to AGENTS.md: Never creates or returns a shared guest user.
  */
 export async function getUserId(): Promise<string | null> {
   const session = await auth();
-  if (session?.user?.id) {
-    return session.user.id;
-  }
+  return session?.user?.id || null;
+}
 
-  const guest = await prisma.user.findUnique({
-    where: { email: GUEST_EMAIL },
-  });
-
-  return guest?.id || null;
+/**
+ * Alias for getUserId() to preserve compatibility across existing API handlers,
+ * while strictly requiring an authenticated session (no guest creation/fallback).
+ */
+export async function getOrCreateUserId(): Promise<string | null> {
+  return getUserId();
 }

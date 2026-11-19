@@ -1,24 +1,30 @@
 import { NextResponse } from "next/server";
 import { searchMedia } from "@/lib/api/unified-search";
-import { MediaType } from "@/lib/api/types";
+import { SearchQuerySchema } from "@/lib/domain/validation";
+import {
+  validationErrorResponse,
+  internalErrorResponse,
+} from "@/lib/api-response";
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const query = searchParams.get("q") || "";
-    const type = (searchParams.get("type") || "all") as MediaType | "all";
+    const type = searchParams.get("type") || "all";
 
     if (!query.trim()) {
       return NextResponse.json({ results: [] });
     }
 
-    const results = await searchMedia(query, type);
+    const parseResult = SearchQuerySchema.safeParse({ q: query, type });
+    if (!parseResult.success) {
+      return validationErrorResponse(parseResult.error);
+    }
+
+    const results = await searchMedia(parseResult.data.q, parseResult.data.type);
     return NextResponse.json({ results });
   } catch (error) {
     console.error("Search API Error:", error);
-    return NextResponse.json(
-      { error: "Failed to search media" },
-      { status: 500 }
-    );
+    return internalErrorResponse("Failed to search media");
   }
 }

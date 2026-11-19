@@ -1,23 +1,38 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getOrCreateUserId } from "@/lib/get-user";
+import { getUserId } from "@/lib/get-user";
 import { Prisma } from "@prisma/client";
+import { CreateMediaSchema, MediaQuerySchema } from "@/lib/domain/validation";
+import {
+  unauthorizedResponse,
+  validationErrorResponse,
+  internalErrorResponse,
+} from "@/lib/api-response";
 
 export async function GET(req: Request) {
   try {
-    const userId = await getOrCreateUserId();
+    const userId = await getUserId();
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return unauthorizedResponse();
     }
 
     const { searchParams } = new URL(req.url);
-    const mediaType = searchParams.get("type");
-    const status = searchParams.get("status");
-    const isFavorite = searchParams.get("favorite");
-    const search = searchParams.get("q");
-    const limit = searchParams.get("limit");
-    const sortBy = searchParams.get("sortBy") || "updatedAt";
-    const sortOrder = searchParams.get("sortOrder") === "asc" ? "asc" : "desc";
+    const queryParams = Object.fromEntries(searchParams.entries());
+    const parseResult = MediaQuerySchema.safeParse(queryParams);
+
+    if (!parseResult.success) {
+      return validationErrorResponse(parseResult.error);
+    }
+
+    const {
+      type: mediaType,
+      status,
+      favorite: isFavorite,
+      q: search,
+      limit,
+      sortBy,
+      sortOrder,
+    } = parseResult.data;
 
     const whereClause: Prisma.UserMediaWhereInput = { userId };
 
@@ -39,33 +54,33 @@ export async function GET(req: Request) {
       };
     }
 
-    const validSortFields = ["updatedAt", "createdAt", "rating", "year", "title"];
-    const orderField = validSortFields.includes(sortBy) ? sortBy : "updatedAt";
-
     const items = await prisma.userMedia.findMany({
       where: whereClause,
-      orderBy: { [orderField]: sortOrder },
-      take: limit ? parseInt(limit, 10) : undefined,
+      orderBy: { [sortBy]: sortOrder },
+      take: limit,
     });
 
     return NextResponse.json({ items });
   } catch (error) {
     console.error("GET /api/media error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch media items" },
-      { status: 500 }
-    );
+    return internalErrorResponse("Failed to fetch media items");
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const userId = await getOrCreateUserId();
+    const userId = await getUserId();
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return unauthorizedResponse();
     }
 
-    const body = await req.json();
+    const rawBody = await req.json().catch(() => null);
+    const parseResult = CreateMediaSchema.safeParse(rawBody);
+
+    if (!parseResult.success) {
+      return validationErrorResponse(parseResult.error);
+    }
+
     const {
       mediaType,
       externalId,
@@ -85,14 +100,7 @@ export async function POST(req: Request) {
       readChapters,
       hoursPlayed,
       tags,
-    } = body;
-
-    if (!title || !mediaType) {
-      return NextResponse.json(
-        { error: "Title and mediaType are required" },
-        { status: 400 }
-      );
-    }
+    } = parseResult.data;
 
     // Check if already exists for this user and externalId
     let existing = null;
@@ -102,7 +110,7 @@ export async function POST(req: Request) {
           userId_mediaType_externalId: {
             userId,
             mediaType,
-            externalId: String(externalId),
+            externalId,
           },
         },
       });
@@ -113,7 +121,7 @@ export async function POST(req: Request) {
       const updated = await prisma.userMedia.update({
         where: { id: existing.id },
         data: {
-          status: status || existing.status,
+          status: status ?? existing.status,
           rating: rating !== undefined ? rating : existing.rating,
           review: review !== undefined ? review : existing.review,
           isFavorite: isFavorite !== undefined ? isFavorite : existing.isFavorite,
@@ -123,7 +131,7 @@ export async function POST(req: Request) {
             readChapters !== undefined ? readChapters : existing.readChapters,
           hoursPlayed:
             hoursPlayed !== undefined ? hoursPlayed : existing.hoursPlayed,
-          tags: tags ? JSON.stringify(tags) : existing.tags,
+          tags: tags ? (Array.isArray(tags) ? JSON.stringify(tags) : tags) : existing.tags,
         },
       });
       return NextResponse.json({ item: updated });
@@ -134,32 +142,29 @@ export async function POST(req: Request) {
       data: {
         userId,
         mediaType,
-        externalId: externalId ? String(externalId) : null,
+        externalId: externalId ?? null,
         externalSource: externalSource || "manual",
         title,
         posterUrl: posterUrl || null,
-        year: year ? parseInt(year, 10) : null,
+        year: year ?? null,
         genres: Array.isArray(genres) ? JSON.stringify(genres) : genres || null,
         overview: overview || null,
         status: status || "plan_to_consume",
-        rating: rating !== undefined ? parseFloat(rating) : null,
+        rating: rating !== undefined ? rating : null,
         review: review || null,
         isFavorite: Boolean(isFavorite),
-        totalEpisodes: totalEpisodes ? parseInt(totalEpisodes, 10) : null,
-        watchedEpisodes: watchedEpisodes ? parseInt(watchedEpisodes, 10) : 0,
-        totalChapters: totalChapters ? parseInt(totalChapters, 10) : null,
-        readChapters: readChapters ? parseInt(readChapters, 10) : 0,
-        hoursPlayed: hoursPlayed ? parseFloat(hoursPlayed) : 0,
-        tags: tags ? JSON.stringify(tags) : null,
+        totalEpisodes: totalEpisodes ?? null,
+        watchedEpisodes: watchedEpisodes ?? 0,
+        totalChapters: totalChapters ?? null,
+        readChapters: readChapters ?? 0,
+        hoursPlayed: hoursPlayed ?? 0,
+        tags: tags ? (Array.isArray(tags) ? JSON.stringify(tags) : tags) : null,
       },
     });
 
     return NextResponse.json({ item: newItem }, { status: 201 });
   } catch (error) {
     console.error("POST /api/media error:", error);
-    return NextResponse.json(
-      { error: "Failed to create media item" },
-      { status: 500 }
-    );
+    return internalErrorResponse("Failed to create media item");
   }
 }

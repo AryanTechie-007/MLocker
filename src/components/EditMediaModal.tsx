@@ -48,6 +48,32 @@ export default function EditMediaModal({
       : ""
   );
 
+  // Reset/sync form state during render whenever selected item changes (Rule 3.4 IDOR/stale state fix)
+  const [prevItemId, setPrevItemId] = useState<string | null>(item?.id || null);
+  if (item && item.id !== prevItemId) {
+    setPrevItemId(item.id);
+    setStatus(item.status || "plan_to_consume");
+    setRating(
+      item.rating !== null && item.rating !== undefined ? item.rating : ""
+    );
+    setReview(item.review || "");
+    setWatchedEpisodes(
+      item.watchedEpisodes !== null && item.watchedEpisodes !== undefined
+        ? String(item.watchedEpisodes)
+        : ""
+    );
+    setReadChapters(
+      item.readChapters !== null && item.readChapters !== undefined
+        ? String(item.readChapters)
+        : ""
+    );
+    setHoursPlayed(
+      item.hoursPlayed !== null && item.hoursPlayed !== undefined
+        ? String(item.hoursPlayed)
+        : ""
+    );
+  }
+
   if (!isOpen || !item) return null;
 
   const handleSave = async (e: React.FormEvent) => {

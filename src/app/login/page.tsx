@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Layers, Lock, Mail, User as UserIcon, ArrowRight } from "lucide-react";
-import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -225,15 +224,6 @@ export default function LoginPage() {
               ? "Already have an account? Sign in here"
               : "Don't have an account? Create one now"}
           </button>
-        </div>
-
-        <div style={{ marginTop: "16px", textAlign: "center" }}>
-          <Link
-            href="/"
-            style={{ color: "var(--text-dim)", fontSize: "0.78rem", textDecoration: "none" }}
-          >
-            Continue as Guest without login →
-          </Link>
         </div>
       </div>
     </div>

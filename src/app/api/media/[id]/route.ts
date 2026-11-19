@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserId } from "@/lib/get-user";
 import { Prisma } from "@prisma/client";
+import { SafeIdSchema, UpdateMediaSchema } from "@/lib/domain/validation";
+import {
+  unauthorizedResponse,
+  notFoundResponse,
+  validationErrorResponse,
+  internalErrorResponse,
+} from "@/lib/api-response";
 
 export async function GET(
   req: Request,
@@ -9,9 +16,14 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const idValidation = SafeIdSchema.safeParse(id);
+    if (!idValidation.success) {
+      return validationErrorResponse(idValidation.error);
+    }
+
     const userId = await getUserId();
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return unauthorizedResponse();
     }
 
     const item = await prisma.userMedia.findFirst({
@@ -26,16 +38,13 @@ export async function GET(
     });
 
     if (!item) {
-      return NextResponse.json({ error: "Media item not found" }, { status: 404 });
+      return notFoundResponse("Media item not found");
     }
 
     return NextResponse.json({ item });
   } catch (error) {
     console.error("GET /api/media/[id] error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch media item" },
-      { status: 500 }
-    );
+    return internalErrorResponse("Failed to fetch media item");
   }
 }
 
@@ -45,47 +54,48 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const userId = await getUserId();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const idValidation = SafeIdSchema.safeParse(id);
+    if (!idValidation.success) {
+      return validationErrorResponse(idValidation.error);
     }
 
-    const body = await req.json();
+    const userId = await getUserId();
+    if (!userId) {
+      return unauthorizedResponse();
+    }
 
     const existing = await prisma.userMedia.findFirst({
       where: { id, userId },
     });
 
     if (!existing) {
-      return NextResponse.json({ error: "Media item not found" }, { status: 404 });
+      return notFoundResponse("Media item not found");
     }
 
+    const rawBody = await req.json().catch(() => null);
+    const parseResult = UpdateMediaSchema.safeParse(rawBody);
+
+    if (!parseResult.success) {
+      return validationErrorResponse(parseResult.error);
+    }
+
+    const body = parseResult.data;
     const updateData: Prisma.UserMediaUpdateInput = {};
 
     if (body.status !== undefined) updateData.status = body.status;
-    if (body.rating !== undefined) {
-      updateData.rating = body.rating === null ? null : parseFloat(body.rating);
-    }
+    if (body.rating !== undefined) updateData.rating = body.rating;
     if (body.review !== undefined) updateData.review = body.review;
-    if (body.isFavorite !== undefined) updateData.isFavorite = Boolean(body.isFavorite);
-    if (body.watchedEpisodes !== undefined) {
-      updateData.watchedEpisodes = parseInt(body.watchedEpisodes, 10);
-    }
-    if (body.totalEpisodes !== undefined) {
-      updateData.totalEpisodes = body.totalEpisodes ? parseInt(body.totalEpisodes, 10) : null;
-    }
-    if (body.readChapters !== undefined) {
-      updateData.readChapters = parseInt(body.readChapters, 10);
-    }
-    if (body.totalChapters !== undefined) {
-      updateData.totalChapters = body.totalChapters ? parseInt(body.totalChapters, 10) : null;
-    }
-    if (body.hoursPlayed !== undefined) {
-      updateData.hoursPlayed = parseFloat(body.hoursPlayed);
-    }
+    if (body.isFavorite !== undefined) updateData.isFavorite = body.isFavorite;
+    if (body.watchedEpisodes !== undefined) updateData.watchedEpisodes = body.watchedEpisodes;
+    if (body.totalEpisodes !== undefined) updateData.totalEpisodes = body.totalEpisodes;
+    if (body.readChapters !== undefined) updateData.readChapters = body.readChapters;
+    if (body.totalChapters !== undefined) updateData.totalChapters = body.totalChapters;
+    if (body.hoursPlayed !== undefined) updateData.hoursPlayed = body.hoursPlayed;
     if (body.tags !== undefined) {
       updateData.tags = Array.isArray(body.tags) ? JSON.stringify(body.tags) : body.tags;
     }
+    if (body.startDate !== undefined) updateData.startDate = body.startDate;
+    if (body.endDate !== undefined) updateData.endDate = body.endDate;
 
     const updated = await prisma.userMedia.update({
       where: { id },
@@ -95,10 +105,7 @@ export async function PATCH(
     return NextResponse.json({ item: updated });
   } catch (error) {
     console.error("PATCH /api/media/[id] error:", error);
-    return NextResponse.json(
-      { error: "Failed to update media item" },
-      { status: 500 }
-    );
+    return internalErrorResponse("Failed to update media item");
   }
 }
 
@@ -108,9 +115,14 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const idValidation = SafeIdSchema.safeParse(id);
+    if (!idValidation.success) {
+      return validationErrorResponse(idValidation.error);
+    }
+
     const userId = await getUserId();
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return unauthorizedResponse();
     }
 
     const existing = await prisma.userMedia.findFirst({
@@ -118,7 +130,7 @@ export async function DELETE(
     });
 
     if (!existing) {
-      return NextResponse.json({ error: "Media item not found" }, { status: 404 });
+      return notFoundResponse("Media item not found");
     }
 
     await prisma.userMedia.delete({
@@ -128,9 +140,6 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("DELETE /api/media/[id] error:", error);
-    return NextResponse.json(
-      { error: "Failed to delete media item" },
-      { status: 500 }
-    );
+    return internalErrorResponse("Failed to delete media item");
   }
 }

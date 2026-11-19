@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getOrCreateUserId } from "@/lib/get-user";
+import { getUserId } from "@/lib/get-user";
+import {
+  unauthorizedResponse,
+  internalErrorResponse,
+} from "@/lib/api-response";
 
 export async function GET() {
   try {
-    const userId = await getOrCreateUserId();
+    const userId = await getUserId();
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return unauthorizedResponse();
     }
 
     const items = await prisma.userMedia.findMany({
@@ -58,34 +62,44 @@ export async function GET() {
     // Genre distribution
     const genreCounts: Record<string, number> = {};
 
-    items.forEach((item) => {
+    for (const item of items) {
       // Type count
-      if (mediaTypeCounts[item.mediaType] !== undefined) {
+      if (item.mediaType in mediaTypeCounts) {
         mediaTypeCounts[item.mediaType]++;
       }
 
       // Status count
-      if (statusCounts[item.status] !== undefined) {
+      if (item.status in statusCounts) {
         statusCounts[item.status]++;
       }
 
-      if (statusByType[item.mediaType] && statusByType[item.mediaType][item.status] !== undefined) {
+      // Status by type
+      if (statusByType[item.mediaType] && item.status in statusByType[item.mediaType]) {
         statusByType[item.mediaType][item.status]++;
       }
 
-      // Progress metrics
-      if (item.hoursPlayed) totalHoursPlayed += item.hoursPlayed;
-      if (item.watchedEpisodes) totalEpisodesWatched += item.watchedEpisodes;
-      if (item.readChapters) totalChaptersRead += item.readChapters;
+      // Time & Progress aggregates
+      if (item.hoursPlayed) {
+        totalHoursPlayed += item.hoursPlayed;
+      }
+      if (item.watchedEpisodes) {
+        totalEpisodesWatched += item.watchedEpisodes;
+      }
+      if (item.readChapters) {
+        totalChaptersRead += item.readChapters;
+      }
 
       // Ratings
       if (item.rating !== null && item.rating !== undefined) {
         totalRatingSum += item.rating;
         ratedCount++;
-        const rounded = Math.min(10, Math.max(1, Math.round(item.rating)));
-        ratingHistogram[rounded] = (ratingHistogram[rounded] || 0) + 1;
+        const rounded = Math.round(item.rating);
+        if (rounded >= 1 && rounded <= 10) {
+          ratingHistogram[rounded]++;
+        }
       }
 
+      // Favorites
       if (item.isFavorite) {
         favoriteCount++;
       }
@@ -93,87 +107,54 @@ export async function GET() {
       // Genres
       if (item.genres) {
         try {
-          const parsed = typeof item.genres === "string" && item.genres.startsWith("[")
-            ? JSON.parse(item.genres)
-            : item.genres;
-          if (Array.isArray(parsed)) {
-            parsed.forEach((g: string) => {
-              if (typeof g === "string") {
-                const cleaned = g.replace(/[[\]"]/g, "").trim();
-                if (cleaned) {
-                  genreCounts[cleaned] = (genreCounts[cleaned] || 0) + 1;
-                }
+          const parsedGenres = JSON.parse(item.genres);
+          if (Array.isArray(parsedGenres)) {
+            for (const g of parsedGenres) {
+              const clean = String(g).trim();
+              if (clean) {
+                genreCounts[clean] = (genreCounts[clean] || 0) + 1;
               }
-            });
-          } else if (typeof parsed === "string") {
-            parsed.split(",").forEach((g: string) => {
-              const cleaned = g.replace(/[[\]"]/g, "").trim();
-              if (cleaned) {
-                genreCounts[cleaned] = (genreCounts[cleaned] || 0) + 1;
-              }
-            });
+            }
           }
         } catch {
-          // not JSON, fallback comma-separated string
-          item.genres.split(",").forEach((g: string) => {
-            const cleaned = g.replace(/[[\]"]/g, "").trim();
-            if (cleaned) genreCounts[cleaned] = (genreCounts[cleaned] || 0) + 1;
-          });
+          // If plain comma string
+          const split = item.genres.split(",");
+          for (const s of split) {
+            const clean = s.trim();
+            if (clean) {
+              genreCounts[clean] = (genreCounts[clean] || 0) + 1;
+            }
+          }
         }
       }
-    });
+    }
 
-    const averageRating = ratedCount > 0 ? (totalRatingSum / ratedCount).toFixed(1) : "0.0";
+    const averageRating = ratedCount > 0 ? parseFloat((totalRatingSum / ratedCount).toFixed(1)) : 0;
 
-    // Top genres
-    const sortedGenres = Object.entries(genreCounts)
-      .map(([name, count]) => ({ name, count }))
+    // Top genres sorted
+    const topGenres = Object.entries(genreCounts)
+      .map(([genre, count]) => ({ genre, count }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
+      .slice(0, 8);
 
-    // Top rated items
-    const topRated = [...items]
-      .filter((i) => i.rating !== null && i.rating !== undefined)
-      .sort((a, b) => (b.rating || 0) - (a.rating || 0))
-      .slice(0, 6);
+    const stats = {
+      totalTracked,
+      mediaTypeCounts,
+      statusCounts,
+      statusByType,
+      totalHoursPlayed: Math.round(totalHoursPlayed * 10) / 10,
+      totalEpisodesWatched,
+      totalChaptersRead,
+      averageRating,
+      ratedCount,
+      favoriteCount,
+      ratingHistogram,
+      topGenres,
+    };
 
-    // Donut data for media types
-    const mediaTypeChartData = Object.entries(mediaTypeCounts)
-      .map(([type, count]) => ({
-        type,
-        name: type.charAt(0).toUpperCase() + type.slice(1),
-        count,
-      }))
-      .filter((d) => d.count > 0);
-
-    // Rating histogram array
-    const ratingChartData = Object.entries(ratingHistogram).map(([score, count]) => ({
-      score: `${score}★`,
-      count,
-    }));
-
-    return NextResponse.json({
-      stats: {
-        totalTracked,
-        favoriteCount,
-        averageRating,
-        totalHoursPlayed: Math.round(totalHoursPlayed * 10) / 10,
-        totalEpisodesWatched,
-        totalChaptersRead,
-        mediaTypeCounts,
-        statusCounts,
-        statusByType,
-        mediaTypeChartData,
-        ratingChartData,
-        topGenres: sortedGenres,
-        topRated,
-      },
-    });
+    return NextResponse.json({ stats });
   } catch (error) {
     console.error("GET /api/stats error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch stats" },
-      { status: 500 }
-    );
+    return internalErrorResponse("Failed to calculate media statistics");
   }
 }

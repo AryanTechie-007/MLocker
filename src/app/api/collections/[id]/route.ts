@@ -1,6 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getOrCreateUserId } from "@/lib/get-user";
+import { getUserId } from "@/lib/get-user";
+import {
+  UpdateCollectionSchema,
+  CollectionItemActionSchema,
+  SafeIdSchema,
+} from "@/lib/domain/validation";
+import {
+  unauthorizedResponse,
+  notFoundResponse,
+  validationErrorResponse,
+  internalErrorResponse,
+} from "@/lib/api-response";
 
 export async function GET(
   req: Request,
@@ -8,9 +19,14 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const userId = await getOrCreateUserId();
+    const idValidation = SafeIdSchema.safeParse(id);
+    if (!idValidation.success) {
+      return validationErrorResponse(idValidation.error);
+    }
+
+    const userId = await getUserId();
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return unauthorizedResponse();
     }
 
     const collection = await prisma.collection.findFirst({
@@ -26,16 +42,13 @@ export async function GET(
     });
 
     if (!collection) {
-      return NextResponse.json({ error: "Collection not found" }, { status: 404 });
+      return notFoundResponse("Collection not found");
     }
 
     return NextResponse.json({ collection });
   } catch (error) {
     console.error("GET /api/collections/[id] error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch collection" },
-      { status: 500 }
-    );
+    return internalErrorResponse("Failed to fetch collection");
   }
 }
 
@@ -45,37 +58,44 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const userId = await getOrCreateUserId();
+    const idValidation = SafeIdSchema.safeParse(id);
+    if (!idValidation.success) {
+      return validationErrorResponse(idValidation.error);
+    }
+
+    const userId = await getUserId();
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return unauthorizedResponse();
     }
 
     const existing = await prisma.collection.findFirst({
       where: { id, userId },
     });
     if (!existing) {
-      return NextResponse.json({ error: "Collection not found" }, { status: 404 });
+      return notFoundResponse("Collection not found");
     }
 
-    const body = await req.json();
-    const { name, description, coverUrl } = body;
+    const rawBody = await req.json().catch(() => null);
+    const parseResult = UpdateCollectionSchema.safeParse(rawBody);
+    if (!parseResult.success) {
+      return validationErrorResponse(parseResult.error);
+    }
+
+    const { name, description, coverUrl } = parseResult.data;
 
     const collection = await prisma.collection.update({
       where: { id },
       data: {
-        name: name !== undefined ? name.trim() : undefined,
-        description: description !== undefined ? description?.trim() : undefined,
-        coverUrl: coverUrl !== undefined ? coverUrl : undefined,
+        name: name !== undefined ? name : undefined,
+        description: description !== undefined ? description || null : undefined,
+        coverUrl: coverUrl !== undefined ? coverUrl || null : undefined,
       },
     });
 
     return NextResponse.json({ collection });
   } catch (error) {
     console.error("PATCH /api/collections/[id] error:", error);
-    return NextResponse.json(
-      { error: "Failed to update collection" },
-      { status: 500 }
-    );
+    return internalErrorResponse("Failed to update collection");
   }
 }
 
@@ -85,16 +105,21 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const userId = await getOrCreateUserId();
+    const idValidation = SafeIdSchema.safeParse(id);
+    if (!idValidation.success) {
+      return validationErrorResponse(idValidation.error);
+    }
+
+    const userId = await getUserId();
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return unauthorizedResponse();
     }
 
     const existing = await prisma.collection.findFirst({
       where: { id, userId },
     });
     if (!existing) {
-      return NextResponse.json({ error: "Collection not found" }, { status: 404 });
+      return notFoundResponse("Collection not found");
     }
 
     await prisma.collection.delete({
@@ -104,39 +129,55 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("DELETE /api/collections/[id] error:", error);
-    return NextResponse.json(
-      { error: "Failed to delete collection" },
-      { status: 500 }
-    );
+    return internalErrorResponse("Failed to delete collection");
   }
 }
 
-// POST to add item to collection or toggle item in collection
+/**
+ * Mutate collection items (add or remove).
+ * Enforces dual-tenant isolation (SEC-01): Verifies that BOTH the collection
+ * and the referenced userMediaId belong to the authenticated user.
+ */
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id: collectionId } = await params;
-    const userId = await getOrCreateUserId();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const idValidation = SafeIdSchema.safeParse(collectionId);
+    if (!idValidation.success) {
+      return validationErrorResponse(idValidation.error);
     }
 
+    const userId = await getUserId();
+    if (!userId) {
+      return unauthorizedResponse();
+    }
+
+    // 1. Authorize collection ownership
     const collection = await prisma.collection.findFirst({
       where: { id: collectionId, userId },
     });
     if (!collection) {
-      return NextResponse.json({ error: "Collection not found" }, { status: 404 });
+      return notFoundResponse("Collection not found");
     }
 
-    const { userMediaId, action } = await req.json();
+    // 2. Validate request payload with Zod
+    const rawBody = await req.json().catch(() => null);
+    const parseResult = CollectionItemActionSchema.safeParse(rawBody);
+    if (!parseResult.success) {
+      return validationErrorResponse(parseResult.error);
+    }
 
-    if (!userMediaId) {
-      return NextResponse.json(
-        { error: "userMediaId is required" },
-        { status: 400 }
-      );
+    const { userMediaId, action } = parseResult.data;
+
+    // 3. Strict Relational Tenant Isolation Check (SEC-01 fix):
+    // Verify that the media item belongs to the same authenticated user
+    const userMedia = await prisma.userMedia.findFirst({
+      where: { id: userMediaId, userId },
+    });
+    if (!userMedia) {
+      return notFoundResponse("Media item not found or unauthorized");
     }
 
     if (action === "remove") {
@@ -176,9 +217,6 @@ export async function POST(
     return NextResponse.json({ item: newItem, action: "added" }, { status: 201 });
   } catch (error) {
     console.error("POST /api/collections/[id] item error:", error);
-    return NextResponse.json(
-      { error: "Failed to modify collection items" },
-      { status: 500 }
-    );
+    return internalErrorResponse("Failed to modify collection items");
   }
 }

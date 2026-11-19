@@ -71,7 +71,7 @@ const TMDB_GENRE_MAP: Record<number, string> = {
 };
 
 function getTMDBKey(): string {
-  return process.env.TMDB_API_KEY || "c93be9cb1dc8ff2594820332b1defeeb";
+  return process.env.TMDB_API_KEY || "";
 }
 
 /**

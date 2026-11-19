@@ -12,7 +12,11 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    passWithNoTests: true,
+    env: {
+      DATABASE_URL: `file:${path.resolve(__dirname, 'prisma/dev.db')}`,
+      NEXTAUTH_SECRET: 'test-secret-for-security-regression-tests-only',
+      NEXTAUTH_URL: 'http://localhost:3000',
+    },
     include: ['tests/**/*.{test,spec}.{ts,tsx}', 'src/**/*.{test,spec}.{ts,tsx}'],
   },
 });

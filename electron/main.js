@@ -2,6 +2,7 @@ const { app, BrowserWindow, shell, ipcMain, Menu } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
+const crypto = require("crypto");
 
 // Enforce single instance
 const gotTheLock = app.requestSingleInstanceLock();
@@ -63,10 +64,6 @@ function setupDatabase() {
     }
   }
 
-  if (!process.env.TMDB_API_KEY) {
-    process.env.TMDB_API_KEY = "c93be9cb1dc8ff2594820332b1defeeb";
-  }
-
   console.log(`[Media Locker] Database configured: ${process.env.DATABASE_URL}`);
 }
 
@@ -102,6 +99,29 @@ function waitForUrl(url, timeoutMs = 30000) {
 
     check();
   });
+}
+
+/**
+ * Retrieves an existing persistent random secret or generates a new cryptographically
+ * secure 32-byte secret for NextAuth desktop sessions.
+ */
+function getOrCreateDesktopSecret() {
+  if (process.env.NEXTAUTH_SECRET) {
+    return process.env.NEXTAUTH_SECRET;
+  }
+  const secretPath = path.join(app.getPath("userData"), ".auth-secret");
+  try {
+    if (fs.existsSync(secretPath)) {
+      const saved = fs.readFileSync(secretPath, "utf8").trim();
+      if (saved.length >= 32) return saved;
+    }
+    const generated = crypto.randomBytes(32).toString("hex");
+    fs.writeFileSync(secretPath, generated, { encoding: "utf8" });
+    return generated;
+  } catch (err) {
+    console.error("[Media Locker] Error reading/writing persistent secret:", err);
+    return crypto.randomBytes(32).toString("hex");
+  }
 }
 
 /**
@@ -146,7 +166,7 @@ async function startProductionServer() {
   nextServer = server;
 
   process.env.NEXTAUTH_URL = `http://localhost:${port}`;
-  process.env.NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET || "media-locker-desktop-app-secret-key-2026";
+  process.env.NEXTAUTH_SECRET = getOrCreateDesktopSecret();
 
   console.log(`[Media Locker] Production server active at http://127.0.0.1:${port}`);
   return `http://localhost:${port}`;
@@ -287,9 +307,17 @@ function setupMenu() {
 
 // IPC Handlers
 ipcMain.handle("open-external", async (_, url) => {
-  if (typeof url === "string" && (url.startsWith("http://") || url.startsWith("https://"))) {
-    await shell.openExternal(url);
+  if (typeof url !== "string") return false;
+  try {
+    const parsed = new URL(url.trim());
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      await shell.openExternal(parsed.href);
+      return true;
+    }
+  } catch {
+    // Malformed URL, safely reject
   }
+  return false;
 });
 
 ipcMain.handle("get-app-version", () => {

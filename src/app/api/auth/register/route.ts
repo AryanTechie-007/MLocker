@@ -1,18 +1,23 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { RegisterUserSchema } from "@/lib/domain/validation";
+import {
+  badRequestResponse,
+  validationErrorResponse,
+  internalErrorResponse,
+} from "@/lib/api-response";
 
 export async function POST(req: Request) {
   try {
-    const { name, email, password } = await req.json();
+    const rawBody = await req.json().catch(() => null);
+    const parseResult = RegisterUserSchema.safeParse(rawBody);
 
-    if (!email || !password) {
-      return NextResponse.json(
-        { error: "Email and password are required" },
-        { status: 400 }
-      );
+    if (!parseResult.success) {
+      return validationErrorResponse(parseResult.error);
     }
 
+    const { name, email, password } = parseResult.data;
     const normalizedEmail = email.toLowerCase().trim();
 
     const existingUser = await prisma.user.findUnique({
@@ -20,17 +25,14 @@ export async function POST(req: Request) {
     });
 
     if (existingUser) {
-      return NextResponse.json(
-        { error: "User already exists with this email" },
-        { status: 400 }
-      );
+      return badRequestResponse("User already exists with this email", undefined, "USER_EXISTS");
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
 
     const user = await prisma.user.create({
       data: {
-        name: name?.trim() || null,
+        name: name ? name.trim() : null,
         email: normalizedEmail,
         passwordHash,
       },
@@ -46,9 +48,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ user }, { status: 201 });
   } catch (error) {
     console.error("Registration error:", error);
-    return NextResponse.json(
-      { error: "An unexpected error occurred during registration" },
-      { status: 500 }
-    );
+    return internalErrorResponse("An unexpected error occurred during registration");
   }
 }
