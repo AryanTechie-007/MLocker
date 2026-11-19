@@ -1,29 +1,21 @@
 # MLocker Implementation Plan
 
 **Project:** [AryanTechie-007/MLocker](https://github.com/AryanTechie-007/MLocker)  
-**Status:** Active Implementation Plan (Milestones 0–2.1 Complete & Verified; Milestone 3 Next)  
+**Status:** Active Implementation Plan (Milestones 0–2.1 Complete & Verified; Milestone 3 Awaiting Final Verification / Review)  
 **Product decisions:** Web + desktop; automatic activity tracking; local-first storage with optional cloud synchronisation.
 
 ---
 
 ## Current Project Position
 
-**Current position:** Milestones 0–2.1 are complete and verified. The next milestone is **Milestone 3 — Six Media Categories**.
+**Current position:** Milestones 0 through 2.1 are complete and verified. **Milestone 3 — Six Media Categories** has been implemented and corrected (including TMDb anime classification and fallback resolution), and is currently **awaiting final verification and review**.
 
-The first task for Milestone 3 is an **audit-only investigation** of:
-- Movies (`MOVIE`)
-- TV Shows (`TV_SHOW`)
-- Anime (`ANIME`)
-- Manga (`MANGA`)
-- Games (`GAME`)
-- Books/Novels (`BOOK`/`NOVEL`)
+The audit ([`test-results/milestone-3-six-category-audit.md`](file:///test-results/milestone-3-six-category-audit.md)) and full implementation ([`test-results/milestone-3-implementation-report.md`](file:///test-results/milestone-3-implementation-report.md)) are complete. All six media categories (Movies, TV Shows, Anime, Manga, Games, and Novels/Books) are supported across unified search, manual entry, library navigation, category filtering, and watch/read/play links.
 
-The audit must inspect schema, enums, search providers, unified search, manual entry, CRUD APIs, filters, navigation, detail pages, category-specific progress tracking, and tests.
-
-Determine whether `BOOK`, `NOVEL`, or other naming conventions already exist across the codebase and database. Do not blindly rename enums or alter stored data.
+Reported local verification: 19 test files and 201 automated tests passing with zero failures, `npx tsc --noEmit` clean (0 errors), `npm run lint` clean (0 errors), and Next.js production build (`npm run build`) passing.
 
 > [!IMPORTANT]
-> **No Milestone 3 feature implementation should begin until the audit findings have been reviewed and approved.**
+> **Milestone 3 is awaiting final review and verification. Do not mark Milestone 3 complete, do not repeat the audit, and do not begin Milestone 4 until Milestone 3 is formally approved.**
 
 ---
 
@@ -448,27 +440,35 @@ Work in small pull requests. Each milestone must be reviewed and tested before t
 
 ### Milestone 3 — Six media categories [AWAITING VERIFICATION / REVIEW]
 **Status:** In Review / Awaiting Verification  
-**Implementation commit (initial):** [`3c886626e42d871d58089071d88c75d48caa3a03`](https://github.com/AryanTechie-007/MLocker/commit/3c886626e42d871d58089071d88c75d48caa3a03)  
+**Implementation commits:**
+- [`3c886626e42d871d58089071d88c75d48caa3a03`](https://github.com/AryanTechie-007/MLocker/commit/3c886626e42d871d58089071d88c75d48caa3a03) (feature implementation: six categories, Open Library, Kitsu, UI tabs, modals, storefront links)
+- [`4765c1d19fd1cdfa7b1d4650a1b52d09a87a4c05`](https://github.com/AryanTechie-007/MLocker/commit/4765c1d19fd1cdfa7b1d4650a1b52d09a87a4c05) (corrective: TMDb anime classification, eliminated ordinary TV/movie leakage, documentation alignment)  
 **Audit Report:** [`test-results/milestone-3-six-category-audit.md`](file:///test-results/milestone-3-six-category-audit.md)  
 **Implementation Report:** [`test-results/milestone-3-implementation-report.md`](file:///test-results/milestone-3-implementation-report.md)  
+
 **Implementation Tasks Completed:**
 - [x] Add search providers for remaining categories (Kitsu for Anime/Manga, Open Library for Novels/Books, Steam for Games, TMDb/iTunes/TVMaze for Movies/TV).
 - [x] Establish single canonical identifier `novel` across runtime and persistence; accept `book` as API-boundary alias and normalize `book` -> `novel` on input.
 - [x] Retain existing chapter tracking (`readChapters`, `totalChapters`) for novels and manga without adding page tracking or database schema migrations.
-- [x] Implement resilient anime search fallback: TMDb is primary; Kitsu is automatic fallback when TMDb key is missing, fails, or returns no results.
-- [x] Rename `src/lib/api/jikan.ts` -> `src/lib/api/kitsu.ts` reflecting actual Kitsu API v3 integration.
+- [x] Implement resilient anime search fallback: TMDb is primary; Kitsu is automatic fallback when TMDb key is missing, fails, or produces zero classified anime results.
+- [x] Correct TMDb anime classification logic (`checkIsAnime`) and eliminate ordinary TV/movie fallback, guaranteeing ordinary non-anime titles are never returned as anime.
+- [x] Rename `src/lib/api/jikan.ts` -> `src/lib/api/kitsu.ts` reflecting actual Kitsu API v3 integration while preserving backward compatibility with legacy `externalSource: "jikan"` database records.
 - [x] Implement isolated, non-failing provider dispatches in `src/lib/api/unified-search.ts`: dedicated single-category routes and 6-way concurrent search for `all`.
 - [x] Category-specific UI: progress trackers and metadata displays in `AddMediaModal.tsx`, `library/page.tsx`, and `media/[id]/page.tsx`.
 - [x] Unified search across all six categories with type filtering in `search/page.tsx`, removing buggy modal popup on game selection.
 - [x] Legal watch/read/play links per category in `WatchProviderBadge.tsx` (MangaDex, BookWalker, Crunchyroll, VIZ, Open Library, Goodreads, Google Books, Amazon Books, Steam, Epic, GOG, Xbox, PSN, Prime Video, Netflix, etc.).
 - [x] Manual entry support for unlisted media in `AddMediaModal.tsx` for all six categories.
-- [x] Comprehensive test coverage with 48 new tests across 4 suites (191 total repository tests, 0 failures).
+- [x] Comprehensive test coverage with 58 new tests across 5 suites (201 total repository tests, 0 failures in reported local verification).
 
 **Files Created & Modified:**
 - `src/lib/api/jikan.ts` -> `src/lib/api/kitsu.ts` (Renamed, added query guard & timeout)
 - `src/lib/api/openLibrary.ts` (Created, Open Library book search provider)
 - `src/lib/domain/validation.ts` (Modified, CanonicalMediaTypeEnum & MediaTypeEnum book->novel normalization)
 - `src/lib/api/unified-search.ts` (Modified, dedicated dispatches, anime fallback, 6-way all search)
+- `src/lib/api/tmdb.ts` (Modified, strict anime classifier, eliminated ordinary TV/movie leakage)
+- `src/lib/api/types.ts` (Modified, documented active vs legacy external sources)
+- `prisma/schema.prisma` (Modified, schema comment clarifying active vs legacy providers)
+- `README.md` (Modified, updated 6 categories, removed outdated Jikan and guest fallback notes)
 - `src/components/AddMediaModal.tsx` (Modified, Manga & Novels options, chapter progress fields, type normalization)
 - `src/components/WatchProviderBadge.tsx` (Modified, storefront links for manga, novel, and book)
 - `src/app/library/page.tsx` (Modified, Manga & Novels category tabs, book alias count & filter handling)
@@ -476,18 +476,21 @@ Work in small pull requests. Each milestone must be reviewed and tested before t
 - `src/app/media/[id]/page.tsx` (Modified, category-aware header labels and metadata)
 - `tests/unit/kitsu-provider.test.ts` (Created, 9 unit tests for anime/manga)
 - `tests/unit/openlibrary-provider.test.ts` (Created, 5 unit tests for book search & rating mapping)
-- `tests/unit/unified-search-categories.test.ts` (Created, 15 unit tests for category dispatch, fallback, resilience)
+- `tests/unit/unified-search-categories.test.ts` (Created, 17 unit tests for category dispatch, fallback, resilience)
+- `tests/unit/tmdb-anime-classification.test.ts` (Created, 8 unit tests for anime classification and output purity)
 - `tests/unit/ui-category-controls.test.ts` (Created, 11 unit tests for UI contracts across modals, search, library)
 - `tests/security/validation.test.ts` (Modified, 8 additional tests for category validation & progress bounds)
+- `test-results/milestone-3-implementation-report.md` (Created, comprehensive implementation & verification report)
 
 **Acceptance criteria**
 - [x] An audit report is approved prior to feature implementation (`test-results/milestone-3-six-category-audit.md`).
 - [x] Users can add, search, edit, browse and track all six categories consistently.
 - [x] Unsupported external metadata is handled gracefully without crashing search or UI.
-- [x] 100% of test suites pass (18 test files, 191 tests passing).
-- [x] TypeScript compiler (`npx tsc --noEmit`) passes with zero errors.
-- [x] ESLint (`npm run lint`) passes with zero errors.
-- [x] Production build (`npm run build`) succeeds.
+- [x] 100% of test suites pass in reported local verification (19 test files, 201 tests passing).
+- [x] TypeScript compiler (`npx tsc --noEmit`) passes in reported local verification with zero errors.
+- [x] ESLint (`npm run lint`) passes in reported local verification with zero errors.
+- [x] Production build (`npm run build`) succeeds in reported local verification.
+- [ ] Formal review and independent CI verification confirmation completed (Milestone remains Awaiting Final Verification / Review).
 
 ### Milestone 4 — External source manager [NEXT / NOT STARTED]
 **Status:** Next / Not started  
@@ -689,7 +692,7 @@ Keep domain logic (source validation, session rules, sync merge rules) outside R
 | **1.2.1. Protocol allowlist correction** | Complete | Protocol allowlist enforced before origin check in `handleWillNavigate()` ([`856538c`](https://github.com/AryanTechie-007/MLocker/commit/856538c42f6a46039ae0db6edf8c7b72b2f4d0fe), CI run [44525905345](https://github.com/AryanTechie-007/MLocker/actions/runs/44525905345)) |
 | **2. Database and desktop reliability** | Complete | Embedded SQLite migration runner, WAL journal mode, pre-migration backups, persistent userData path ([`1b1481f`](https://github.com/AryanTechie-007/MLocker/commit/1b1481fa512ddb506dbbba07bca0bc4225602496), [`8c12fe4`](https://github.com/AryanTechie-007/MLocker/commit/8c12fe489a4d64b86fa207a28dab326883700286), CI run [44532724671](https://github.com/AryanTechie-007/MLocker/actions/runs/44532724671), [`test-results/milestone-2-database-report.md`](file:///test-results/milestone-2-database-report.md)) |
 | **2.1. Database lifecycle corrective audit** | Complete | Single migration source of truth, strict structural legacy validation, semantic default equivalence, isolated test DB, graceful Windows Electron shutdown ([`fc8f6b3`](https://github.com/AryanTechie-007/MLocker/commit/fc8f6b376c1f6a9404aae30d42ea6011b9ff0aac), [`30033d2`](https://github.com/AryanTechie-007/MLocker/commit/30033d295f58e7fee93d66b8631360d50f9e9411), [`74a60de`](https://github.com/AryanTechie-007/MLocker/commit/74a60decde3f813cbfbfb1e02dcb1744be216f99), CI run [44569027391](https://github.com/AryanTechie-007/MLocker/actions/runs/44569027391), [`test-results/milestone-2.1-corrective-report.md`](file:///test-results/milestone-2.1-corrective-report.md)) |
-| **3. Six media categories** | In Review / Awaiting Verification | Kitsu provider (anime/manga), Open Library provider (novels/books), canonical `novel` identifier & `book` alias, resilient anime fallback, UI controls, 19 suites & 201 tests passing ([`3c88662`](https://github.com/AryanTechie-007/MLocker/commit/3c886626e42d871d58089071d88c75d48caa3a03), [`test-results/milestone-3-implementation-report.md`](file:///test-results/milestone-3-implementation-report.md)) |
+| **3. Six media categories** | In Review / Awaiting Verification | Kitsu provider (anime/manga), Open Library provider (novels/books), canonical `novel` identifier & `book` alias, resilient anime fallback, UI controls, 19 suites & 201 tests passing in reported local verification ([`3c88662`](https://github.com/AryanTechie-007/MLocker/commit/3c886626e42d871d58089071d88c75d48caa3a03), [`4765c1d`](https://github.com/AryanTechie-007/MLocker/commit/4765c1d19fd1cdfa7b1d4650a1b52d09a87a4c05), [`test-results/milestone-3-implementation-report.md`](file:///test-results/milestone-3-implementation-report.md)) |
 | **4. External source manager** | Next / Not started | Blocked until Milestone 4 is explicitly started |
 | **5. Session engine** | Not started | Blocked on Milestone 4 completion |
 | **6. Browser extension MVP** | Not started | Blocked on Milestone 5 completion |
@@ -699,13 +702,12 @@ Keep domain logic (source validation, session rules, sync merge rules) outside R
 
 ---
 
-## 12. Next developer deliverable — Milestone 4: External Source Manager
+## 12. Next developer deliverable — Milestone 3 Final Verification & Review
 
-**Current position:** Milestones 0 through 3 are complete and verified. The next development milestone is **Milestone 4 — External source manager**.
+**Current position:** Milestones 0 through 2.1 are complete and verified. Milestone 3 implementation and anime fallback corrections have been completed and are **awaiting final verification and review**. Milestone 4 remains strictly unstarted until Milestone 3 is formally approved.
 
-Do not begin Milestone 4 until requested. When authorized, implement:
-1. `MediaSource` model and database migration.
-2. Source CRUD APIs with strict ownership validation (`session.userId`).
-3. External source registration and management UI on media detail pages.
-4. Strict URL validation (`http:` and `https:` protocols only).
-5. Safe external link launching via `shell.openExternal` in Electron and `rel="noopener noreferrer"` in Web.
+Before proceeding to Milestone 4:
+1. Conduct formal review of the Milestone 3 implementation report ([`test-results/milestone-3-implementation-report.md`](file:///test-results/milestone-3-implementation-report.md)).
+2. Confirm independent CI verification results once available.
+3. Do not mark Milestone 3 complete until formal review and verification are confirmed.
+4. Do not begin Milestone 4 feature work until authorized.
