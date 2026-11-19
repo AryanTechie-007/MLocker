@@ -64,23 +64,25 @@ function handleWillNavigate(event, navigationUrl, appOrigin, shell) {
 
   try {
     const parsed = new URL(navigationUrl.trim());
+
+    // 1. Enforce strict HTTP/HTTPS protocol allowlist first (Milestone 1.2.1)
+    // Blocks blob:, filesystem:, file:, javascript:, data:, and custom protocols regardless of origin
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      if (event && typeof event.preventDefault === "function") event.preventDefault();
+      return { allowed: false, reason: "blocked_protocol" };
+    }
+
     const expectedOrigin = new URL(appOrigin).origin;
 
-    // Legitimate internal application navigation
+    // 2. Legitimate internal application navigation within application origin
     if (parsed.origin === expectedOrigin) {
       return { allowed: true, reason: "internal" };
     }
 
-    // External navigation: cancel in-window navigation
+    // 3. External HTTP/HTTPS navigation: prevent in-window load and open in system browser
     if (event && typeof event.preventDefault === "function") event.preventDefault();
-
-    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-      handleOpenExternal(shell, parsed.href);
-      return { allowed: false, reason: "external_opened" };
-    }
-
-    // Blocked protocol
-    return { allowed: false, reason: "blocked_protocol" };
+    handleOpenExternal(shell, parsed.href);
+    return { allowed: false, reason: "external_opened" };
   } catch {
     if (event && typeof event.preventDefault === "function") event.preventDefault();
     return { allowed: false, reason: "malformed_url" };

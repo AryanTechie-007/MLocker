@@ -118,6 +118,44 @@ describe("Security: Electron Navigation & Window Open Guards (Milestone 1.2)", (
       expect(mockShell.openExternal).toHaveBeenCalledWith("http://tvmaze.com/shows/123");
     });
 
+    it("strictly blocks same-origin blob: URL, calls preventDefault, and NEVER opens externally (Milestone 1.2.1)", () => {
+      // WHATWG origin for blob:http://localhost:3000/... is "http://localhost:3000"
+      const sameOriginBlobUrl = "blob:http://localhost:3000/d381e4b8-f86a-4d37-975c-4384b6f1fbe7";
+      const outcome = handleWillNavigate(mockEvent, sameOriginBlobUrl, APP_ORIGIN, mockShell);
+
+      expect(outcome).toEqual({ allowed: false, reason: "blocked_protocol" });
+      expect(mockEvent.preventDefault).toHaveBeenCalledTimes(1);
+      expect(mockShell.openExternal).not.toHaveBeenCalled();
+    });
+
+    it("strictly blocks external-origin blob: URL, calls preventDefault, and NEVER opens externally (Milestone 1.2.1)", () => {
+      const externalBlobUrl = "blob:https://attacker.com/4b56c4c0-03fa-4342-b0ef-6592d3c907b8";
+      const outcome = handleWillNavigate(mockEvent, externalBlobUrl, APP_ORIGIN, mockShell);
+
+      expect(outcome).toEqual({ allowed: false, reason: "blocked_protocol" });
+      expect(mockEvent.preventDefault).toHaveBeenCalledTimes(1);
+      expect(mockShell.openExternal).not.toHaveBeenCalled();
+    });
+
+    it("strictly blocks filesystem: URL, calls preventDefault, and NEVER opens externally (Milestone 1.2.1)", () => {
+      const filesystemUrl = "filesystem:http://localhost:3000/temporary/exploit.html";
+      const outcome = handleWillNavigate(mockEvent, filesystemUrl, APP_ORIGIN, mockShell);
+
+      expect(outcome).toEqual({ allowed: false, reason: "blocked_protocol" });
+      expect(mockEvent.preventDefault).toHaveBeenCalledTimes(1);
+      expect(mockShell.openExternal).not.toHaveBeenCalled();
+    });
+
+    it("allows same-origin HTTPS navigation when application origin is HTTPS", () => {
+      const httpsAppOrigin = "https://app.medialocker.local";
+      const internalHttpsUrl = "https://app.medialocker.local/library";
+      const outcome = handleWillNavigate(mockEvent, internalHttpsUrl, httpsAppOrigin, mockShell);
+
+      expect(outcome).toEqual({ allowed: true, reason: "internal" });
+      expect(mockEvent.preventDefault).not.toHaveBeenCalled();
+      expect(mockShell.openExternal).not.toHaveBeenCalled();
+    });
+
     it("strictly blocks file:// scheme, cancels navigation, and NEVER opens externally", () => {
       const fileUrl = "file:///C:/Users/Administrator/secret.env";
       const outcome = handleWillNavigate(mockEvent, fileUrl, APP_ORIGIN, mockShell);
@@ -211,6 +249,11 @@ describe("Security: Electron Navigation & Window Open Guards (Milestone 1.2)", (
       // Verify execution of registered will-navigate listener with dangerous scheme
       registeredEventHandlers["will-navigate"](mockEvent, "file:///C:/test.txt");
       expect(mockEvent.preventDefault).toHaveBeenCalled();
+
+      // Verify execution of registered will-navigate listener with same-origin blob: URL (Milestone 1.2.1)
+      mockEvent.preventDefault.mockClear();
+      registeredEventHandlers["will-navigate"](mockEvent, "blob:http://localhost:3000/some-guid");
+      expect(mockEvent.preventDefault).toHaveBeenCalledTimes(1);
     });
   });
 });

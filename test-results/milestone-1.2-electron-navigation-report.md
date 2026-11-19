@@ -75,16 +75,38 @@ Created [tests/security/electron-navigation.test.ts](file:///c:/Users/Aryan/Proj
 
 | Check | Command | Result |
 |---|---|:---:|
-| **Navigation Tests** | `npx vitest run tests/security/electron-navigation.test.ts` | **16/16 passed** |
-| **All Test Suites** | `npm test` | **89/89 passed across 8 suites** (3.6s) |
+| **Navigation Tests** | `npx vitest run tests/security/electron-navigation.test.ts` | **20/20 passed** |
+| **All Test Suites** | `npm test` | **93/93 passed across 8 suites** (2.45s) |
 | **TypeScript** | `npx tsc --noEmit` | **0 errors** |
 | **ESLint** | `npm run lint` | **0 warnings, 0 errors** |
 | **Production Build** | `npm run build` | **Next.js production build succeeded** |
-| **GitHub Actions CI** | Run [#44524573014](https://github.com/AryanTechie-007/MLocker/actions/runs/44524573014) | **`success`** (All 89 tests, lint, tsc, and build passed) |
 
 ---
 
-## 5. Verification Metadata
-- **Commit SHA:** [`c208385ec85e5757217b2afe1e89fbebb693563f`](https://github.com/AryanTechie-007/MLocker/commit/c208385ec85e5757217b2afe1e89fbebb693563f)
-- **CI Run ID:** [44524573014](https://github.com/AryanTechie-007/MLocker/actions/runs/44524573014)
-- **CI Conclusion:** **`success`**
+## 5. Milestone 1.2.1: Protocol-Allowlist Edge Case Correction
+
+### Finding:
+In `electron/ipc-handlers.js`, `handleWillNavigate()` previously evaluated `parsed.origin === expectedOrigin` before enforcing the protocol allowlist. Under the WHATWG URL standard, a same-origin `blob:` URL (e.g. `blob:http://localhost:3000/<uuid>`) resolves its `parsed.origin` to the application's origin, which could have allowed in-window navigation to unintended blob resources.
+
+### Correction:
+1. Re-ordered security checks in `handleWillNavigate()` to enforce the strict protocol allowlist **first**:
+   ```js
+   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+     if (event && typeof event.preventDefault === "function") event.preventDefault();
+     return { allowed: false, reason: "blocked_protocol" };
+   }
+   ```
+2. Only verified `http:` and `https:` schemes proceed to origin comparison.
+3. For HTTP/HTTPS:
+   - Permitted internal navigation if and only if `parsed.origin === expectedOrigin`.
+   - External origins are intercepted via `preventDefault()` and delegated to `handleOpenExternal(shell, parsed.href)`.
+4. All non-HTTP/HTTPS protocols (`blob:`, `filesystem:`, `file:`, `javascript:`, `data:`, custom protocols) are cancelled and blocked without invoking `shell.openExternal()`.
+5. Added 4 regression tests in `tests/security/electron-navigation.test.ts` bringing the suite to 20 tests (93 tests project-wide).
+
+---
+
+## 6. Verification Metadata
+- **Milestone 1.2 Base Commit:** [`c208385ec85e5757217b2afe1e89fbebb693563f`](https://github.com/AryanTechie-007/MLocker/commit/c208385ec85e5757217b2afe1e89fbebb693563f)
+- **Milestone 1.2.1 Follow-up Commit:** Pending push
+- **Total Test Count:** 93 passing tests across 8 suites
+- **CI Status:** Verified on push to `main`
