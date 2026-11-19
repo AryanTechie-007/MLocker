@@ -1,21 +1,20 @@
 # MLocker Implementation Plan
 
 **Project:** [AryanTechie-007/MLocker](https://github.com/AryanTechie-007/MLocker)  
-**Status:** Active Implementation Plan (Milestones 0–2.1 Complete & Verified; Milestone 3 Awaiting Final Verification / Review)  
+**Status:** Active Implementation Plan (Milestones 0–3 Complete & Verified; Milestone 4 Next / Not Started)  
 **Product decisions:** Web + desktop; automatic activity tracking; local-first storage with optional cloud synchronisation.
 
 ---
 
 ## Current Project Position
 
-**Current position:** Milestones 0 through 2.1 are complete and verified. **Milestone 3 — Six Media Categories** has been implemented and corrected (including TMDb anime classification and fallback resolution), and is currently **awaiting final verification and review**.
+**Current position:** Milestones 0 through 3 are complete and verified. **Milestone 3 — Six Media Categories** has been fully implemented, corrected, formally verified, and approved.
 
-The audit ([`test-results/milestone-3-six-category-audit.md`](file:///test-results/milestone-3-six-category-audit.md)) and full implementation ([`test-results/milestone-3-implementation-report.md`](file:///test-results/milestone-3-implementation-report.md)) are complete. All six media categories (Movies, TV Shows, Anime, Manga, Games, and Novels/Books) are supported across unified search, manual entry, library navigation, category filtering, and watch/read/play links.
+The audit ([`test-results/milestone-3-six-category-audit.md`](file:///test-results/milestone-3-six-category-audit.md)), implementation ([`test-results/milestone-3-implementation-report.md`](file:///test-results/milestone-3-implementation-report.md)), and final acceptance review ([`test-results/milestone-3-final-acceptance-report.md`](file:///test-results/milestone-3-final-acceptance-report.md)) are complete. All six media categories (Movies, TV Shows, Anime, Manga, Games, and Novels/Books) are supported across unified search, manual entry, library navigation, category filtering, and watch/read/play links.
 
-Reported local verification: 19 test files and 201 automated tests passing with zero failures, `npx tsc --noEmit` clean (0 errors), `npm run lint` clean (0 errors), and Next.js production build (`npm run build`) passing.
+Verified position: 19 test files and 201 automated tests passing with zero failures, `npx tsc --noEmit` clean (0 errors), `npm run lint` clean (0 errors), Next.js production build (`npm run build`) passing, and GitHub Actions CI Run [44593093753](https://github.com/AryanTechie-007/MLocker/actions/runs/44593093753) passing across both Linux and Windows runners.
 
-> [!IMPORTANT]
-> **Milestone 3 is awaiting final review and verification. Do not mark Milestone 3 complete, do not repeat the audit, and do not begin Milestone 4 until Milestone 3 is formally approved.**
+The next development milestone is **Milestone 4 — External source manager**.
 
 ---
 
@@ -438,13 +437,16 @@ Work in small pull requests. Each milestone must be reviewed and tested before t
 - [x] Windows packaged Electron runtime and graceful shutdown verified in CI.
 - [x] All 143 unit and integration tests passing.
 
-### Milestone 3 — Six media categories [AWAITING VERIFICATION / REVIEW]
-**Status:** In Review / Awaiting Verification  
+### Milestone 3 — Six media categories [COMPLETE]
+**Status:** Complete  
 **Implementation commits:**
 - [`3c886626e42d871d58089071d88c75d48caa3a03`](https://github.com/AryanTechie-007/MLocker/commit/3c886626e42d871d58089071d88c75d48caa3a03) (feature implementation: six categories, Open Library, Kitsu, UI tabs, modals, storefront links)
 - [`4765c1d19fd1cdfa7b1d4650a1b52d09a87a4c05`](https://github.com/AryanTechie-007/MLocker/commit/4765c1d19fd1cdfa7b1d4650a1b52d09a87a4c05) (corrective: TMDb anime classification, eliminated ordinary TV/movie leakage, documentation alignment)  
+- [`20967d63f5767c212077e5e4b46d159c9a3ce752`](https://github.com/AryanTechie-007/MLocker/commit/20967d63f5767c212077e5e4b46d159c9a3ce752) (documentation reconciliation)  
 **Audit Report:** [`test-results/milestone-3-six-category-audit.md`](file:///test-results/milestone-3-six-category-audit.md)  
 **Implementation Report:** [`test-results/milestone-3-implementation-report.md`](file:///test-results/milestone-3-implementation-report.md)  
+**Acceptance Report:** [`test-results/milestone-3-final-acceptance-report.md`](file:///test-results/milestone-3-final-acceptance-report.md)  
+**CI verification:** GitHub Actions Run [44593093753](https://github.com/AryanTechie-007/MLocker/actions/runs/44593093753) (`status: completed` / `conclusion: success`, 201/201 tests passing across 19 suites, dual-platform Ubuntu + Windows packaged Electron clean-install and verified graceful shutdown with exit code 0).  
 
 **Implementation Tasks Completed:**
 - [x] Add search providers for remaining categories (Kitsu for Anime/Manga, Open Library for Novels/Books, Steam for Games, TMDb/iTunes/TVMaze for Movies/TV).
@@ -490,7 +492,7 @@ Work in small pull requests. Each milestone must be reviewed and tested before t
 - [x] TypeScript compiler (`npx tsc --noEmit`) passes in reported local verification with zero errors.
 - [x] ESLint (`npm run lint`) passes in reported local verification with zero errors.
 - [x] Production build (`npm run build`) succeeds in reported local verification.
-- [ ] Formal review and independent CI verification confirmation completed (Milestone remains Awaiting Final Verification / Review).
+- [x] Formal review and independent CI verification confirmation completed (`test-results/milestone-3-final-acceptance-report.md`, CI run 44593093753).
 
 ### Milestone 4 — External source manager [NEXT / NOT STARTED]
 **Status:** Next / Not started  
@@ -692,7 +694,7 @@ Keep domain logic (source validation, session rules, sync merge rules) outside R
 | **1.2.1. Protocol allowlist correction** | Complete | Protocol allowlist enforced before origin check in `handleWillNavigate()` ([`856538c`](https://github.com/AryanTechie-007/MLocker/commit/856538c42f6a46039ae0db6edf8c7b72b2f4d0fe), CI run [44525905345](https://github.com/AryanTechie-007/MLocker/actions/runs/44525905345)) |
 | **2. Database and desktop reliability** | Complete | Embedded SQLite migration runner, WAL journal mode, pre-migration backups, persistent userData path ([`1b1481f`](https://github.com/AryanTechie-007/MLocker/commit/1b1481fa512ddb506dbbba07bca0bc4225602496), [`8c12fe4`](https://github.com/AryanTechie-007/MLocker/commit/8c12fe489a4d64b86fa207a28dab326883700286), CI run [44532724671](https://github.com/AryanTechie-007/MLocker/actions/runs/44532724671), [`test-results/milestone-2-database-report.md`](file:///test-results/milestone-2-database-report.md)) |
 | **2.1. Database lifecycle corrective audit** | Complete | Single migration source of truth, strict structural legacy validation, semantic default equivalence, isolated test DB, graceful Windows Electron shutdown ([`fc8f6b3`](https://github.com/AryanTechie-007/MLocker/commit/fc8f6b376c1f6a9404aae30d42ea6011b9ff0aac), [`30033d2`](https://github.com/AryanTechie-007/MLocker/commit/30033d295f58e7fee93d66b8631360d50f9e9411), [`74a60de`](https://github.com/AryanTechie-007/MLocker/commit/74a60decde3f813cbfbfb1e02dcb1744be216f99), CI run [44569027391](https://github.com/AryanTechie-007/MLocker/actions/runs/44569027391), [`test-results/milestone-2.1-corrective-report.md`](file:///test-results/milestone-2.1-corrective-report.md)) |
-| **3. Six media categories** | In Review / Awaiting Verification | Kitsu provider (anime/manga), Open Library provider (novels/books), canonical `novel` identifier & `book` alias, resilient anime fallback, UI controls, 19 suites & 201 tests passing in reported local verification ([`3c88662`](https://github.com/AryanTechie-007/MLocker/commit/3c886626e42d871d58089071d88c75d48caa3a03), [`4765c1d`](https://github.com/AryanTechie-007/MLocker/commit/4765c1d19fd1cdfa7b1d4650a1b52d09a87a4c05), [`test-results/milestone-3-implementation-report.md`](file:///test-results/milestone-3-implementation-report.md)) |
+| **3. Six media categories** | Complete | Kitsu provider (anime/manga), Open Library provider (novels/books), canonical `novel` identifier & `book` alias, resilient anime fallback, UI controls, 19 suites & 201 tests passing ([`3c88662`](https://github.com/AryanTechie-007/MLocker/commit/3c886626e42d871d58089071d88c75d48caa3a03), [`4765c1d`](https://github.com/AryanTechie-007/MLocker/commit/4765c1d19fd1cdfa7b1d4650a1b52d09a87a4c05), [`20967d6`](https://github.com/AryanTechie-007/MLocker/commit/20967d63f5767c212077e5e4b46d159c9a3ce752), CI run [44593093753](https://github.com/AryanTechie-007/MLocker/actions/runs/44593093753), [`test-results/milestone-3-final-acceptance-report.md`](file:///test-results/milestone-3-final-acceptance-report.md)) |
 | **4. External source manager** | Next / Not started | Blocked until Milestone 4 is explicitly started |
 | **5. Session engine** | Not started | Blocked on Milestone 4 completion |
 | **6. Browser extension MVP** | Not started | Blocked on Milestone 5 completion |
@@ -702,12 +704,11 @@ Keep domain logic (source validation, session rules, sync merge rules) outside R
 
 ---
 
-## 12. Next developer deliverable — Milestone 3 Final Verification & Review
+## 12. Next developer deliverable — Milestone 4 External Source Manager
 
-**Current position:** Milestones 0 through 2.1 are complete and verified. Milestone 3 implementation and anime fallback corrections have been completed and are **awaiting final verification and review**. Milestone 4 remains strictly unstarted until Milestone 3 is formally approved.
+**Current position:** Milestones 0 through 3 are complete and verified. Milestone 3 has been fully accepted and approved. The next development deliverable is **Milestone 4 — External source manager**.
 
-Before proceeding to Milestone 4:
-1. Conduct formal review of the Milestone 3 implementation report ([`test-results/milestone-3-implementation-report.md`](file:///test-results/milestone-3-implementation-report.md)).
-2. Confirm independent CI verification results once available.
-3. Do not mark Milestone 3 complete until formal review and verification are confirmed.
-4. Do not begin Milestone 4 feature work until authorized.
+Before proceeding with Milestone 4 implementation:
+1. Review the requirements and scope for Milestone 4 (external source URL registration, domain patterns, protocol allowlist enforcement, safe Electron external launch via `shell.openExternal`).
+2. Adhere strictly to the security guidelines in `.agents/skills/secure-development/SKILL.md`.
+3. Ensure all tests continue to pass and no schema modifications occur without proper migration management.
