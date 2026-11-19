@@ -1,8 +1,29 @@
 # MLocker Implementation Plan
 
 **Project:** [AryanTechie-007/MLocker](https://github.com/AryanTechie-007/MLocker)  
-**Status:** Proposed implementation plan  
+**Status:** Active Implementation Plan (Milestones 0–2.1 Complete & Verified; Milestone 3 Next)  
 **Product decisions:** Web + desktop; automatic activity tracking; local-first storage with optional cloud synchronisation.
+
+---
+
+## Current Project Position
+
+**Current position:** Milestones 0–2.1 are complete and verified. The next milestone is **Milestone 3 — Six Media Categories**.
+
+The first task for Milestone 3 is an **audit-only investigation** of:
+- Movies (`MOVIE`)
+- TV Shows (`TV_SHOW`)
+- Anime (`ANIME`)
+- Manga (`MANGA`)
+- Games (`GAME`)
+- Books/Novels (`BOOK`/`NOVEL`)
+
+The audit must inspect schema, enums, search providers, unified search, manual entry, CRUD APIs, filters, navigation, detail pages, category-specific progress tracking, and tests.
+
+Determine whether `BOOK`, `NOVEL`, or other naming conventions already exist across the codebase and database. Do not blindly rename enums or alter stored data.
+
+> [!IMPORTANT]
+> **No Milestone 3 feature implementation should begin until the audit findings have been reviewed and approved.**
 
 ---
 
@@ -30,24 +51,22 @@ MLocker should evolve into a cross-platform personal media library that helps us
 
 ---
 
-## 2. Current-codebase constraints and known audit findings
+## 2. Current-codebase constraints and baseline audit resolutions
 
 The repository has an existing Next.js/React web application, Electron desktop application, Prisma data layer, and SQLite setup. Retain these foundations unless implementation evidence shows they are unsuitable.
 
-The prior source audit identified the following items to verify and address:
+The baseline source audit identified the following items, with their verified resolution status:
 
-- Unauthenticated requests can fall back to a shared guest identity. This must not be used for multiple public users.
-- Collection-item association needs to verify that both the collection and media item belong to the same user.
-- Electron's database provisioning needs to work on a clean installation. The repository did not appear to contain Prisma migrations, while database files are ignored.
-- API payloads need server-side validation for media types, statuses, progress, ratings, and numeric boundaries.
-- Publicly embedded API credentials and predictable fallback secrets must be removed or rotated where applicable.
-- Manga and Novel support appears incomplete across unified search, filters, manual entry, and library navigation.
-- Add/Edit modal state can become stale when the selected item changes while a modal remains mounted.
-- Search requests need cancellation or stale-response protection and sensible caching.
-- Statistics should move toward database aggregation as data volume grows.
-- Existing aggregate time fields should not be treated as the only source of truth once session tracking is introduced.
-
-These are audit findings from source inspection, not claims that the application has been executed or tested. Reconfirm each against the current branch before changing code.
+- **Unauthenticated requests guest fallback:** Resolved in Milestone 1 (`src/lib/get-user.ts` returns typed 401 Unauthorized; zero guest fallback).
+- **Collection-item cross-user association IDOR:** Resolved in Milestone 1 (`src/app/api/collections/[id]/route.ts` enforces dual-ownership validation).
+- **Electron database clean-install provisioning & migrations:** Resolved in Milestones 2 & 2.1 (canonical migration `20261119000000_init`, zero-CLI embedded runner, single source of truth, fail-safe backups, strict legacy validation).
+- **API payload validation:** Resolved in Milestone 1 (`src/lib/domain/validation.ts` pure domain Zod schemas for all mutations and queries).
+- **Publicly embedded credentials & fallback secrets:** Resolved in Milestone 1 (committed TMDB key removed; dynamic 32-byte desktop secret).
+- **Manga and Novel support incomplete:** Target for Milestone 3 (search providers, unified search, library filters, detail pages, category progress).
+- **Add/Edit modal state stale on item change:** Resolved in Milestone 1 (form state resets during render upon item switch).
+- **Search request cancellation & debounce:** Target for Milestone 3.
+- **Statistics aggregation in database:** Target for Milestone 8.
+- **Aggregate time fields vs session tracking:** Target for Milestone 5.
 
 ---
 
@@ -288,39 +307,105 @@ Cloud sync must be optional for desktop users. Do not imply that web access is a
 
 Work in small pull requests. Each milestone must be reviewed and tested before the next one begins.
 
-### Milestone 0 — Repository baseline
+### Milestone 0 — Repository baseline [COMPLETE]
+**Status:** Complete  
+**Implementation commits:** `dfbced7`, `3b6bc20`, `d98f48b`, `d547ea4`, [`870543a`](https://github.com/AryanTechie-007/MLocker/commit/870543a152d113ae8a0e08f0a0c4f82875b2258a) (feat(ci): add Vitest test runner, GitHub Actions CI workflow, baseline unit tests, and component audit reports)  
+**Verification:** Baseline quality checks executed; Vitest suite and GitHub Actions CI workflow (`.github/workflows/ci.yml`) established.
+
 **Tasks**
-- Inspect the current default branch and recent commits.
-- Confirm package scripts, runtime versions, Prisma schema, API routes, Electron packaging and CI configuration.
-- Run the existing lint, typecheck, build and test commands where available.
-- Record existing failures before making changes.
-- Confirm which audit findings still reproduce.
+- [x] Inspect the current default branch and recent commits.
+- [x] Confirm package scripts, runtime versions, Prisma schema, API routes, Electron packaging and CI configuration.
+- [x] Run the existing lint, typecheck, build and test commands where available.
+- [x] Record existing failures before making changes.
+- [x] Confirm which audit findings still reproduce.
 
 **Acceptance criteria**
-- A baseline report exists.
-- Existing commands and failures are documented.
-- No unrelated refactor is bundled into the baseline.
+- [x] A baseline report exists.
+- [x] Existing commands and failures are documented.
+- [x] No unrelated refactor is bundled into the baseline.
 
-### Milestone 1 — Security and application stability
+### Milestone 1 — Security and application stability [COMPLETE]
+**Status:** Complete  
+**Implementation commit:** [`2b933d5c089913ce7a139372f3d4329fdb1df986`](https://github.com/AryanTechie-007/MLocker/commit/2b933d5c089913ce7a139372f3d4329fdb1df986)  
+**Documentation commit:** [`a95d3bc650e4175bdf447a1515bb55c1b69165b4`](https://github.com/AryanTechie-007/MLocker/commit/a95d3bc650e4175bdf447a1515bb55c1b69165b4)  
+**Verification report:** [`test-results/milestone-1-security-report.md`](file:///test-results/milestone-1-security-report.md)  
+**CI verification:** GitHub Actions Run [44519584927](https://github.com/AryanTechie-007/MLocker/actions/runs/44519584927) (`status: completed` / `conclusion: success`, 60/60 tests passing across 5 suites).
+
 **Tasks**
-- Remove shared unauthenticated guest identity from public web request paths.
-- Define separate, isolated local desktop profile behaviour if guest/local-only mode is retained.
-- Enforce ownership on every media, collection, source, and session operation.
-- Fix collection-to-media cross-user association.
-- Add Zod validation to write APIs.
-- Validate enum values, numeric bounds, progress ranges and required fields.
-- Remove hardcoded API keys and predictable fallback secrets; rotate exposed credentials where necessary.
-- Fix modal state resets and search request races.
-- Add regression tests for authorization and validation.
+- [x] Remove shared unauthenticated guest identity from public web request paths (`src/lib/get-user.ts`).
+- [x] Reject unauthenticated requests with typed 401 Unauthorized (`code: "UNAUTHORIZED"`).
+- [x] Enforce ownership on every media, collection, source, and session operation.
+- [x] Fix collection-to-media cross-user association with dual-ownership verification.
+- [x] Add pure domain Zod validation to write APIs (`src/lib/domain/validation.ts`).
+- [x] Validate enum values, numeric bounds, progress ranges and required fields.
+- [x] Remove hardcoded API keys and predictable fallback secrets; generate dynamic 32-byte desktop secrets.
+- [x] Fix modal state resets during render when selected item changes.
+- [x] Add regression tests for authorization, tenant isolation, and input validation.
 
 **Acceptance criteria**
-- Two test accounts cannot read or mutate each other's records.
-- Unauthenticated web requests cannot fall into one shared library.
-- Cross-user collection/media association is rejected.
-- Invalid payloads return safe 4xx responses.
-- No secret is required to be committed to the repository.
+- [x] Two test accounts cannot read or mutate each other's records.
+- [x] Unauthenticated web requests cannot fall into one shared library.
+- [x] Cross-user collection/media association is rejected (HTTP 404).
+- [x] Invalid payloads return safe 4xx structured responses.
+- [x] No secret is required to be committed to the repository.
+
+### Milestone 1.1 — Residual security fixes [COMPLETE]
+**Status:** Complete  
+**Implementation commit:** [`5e14af180d710e1b285657be0644c1cd331a82ca`](https://github.com/AryanTechie-007/MLocker/commit/5e14af180d710e1b285657be0644c1cd331a82ca)  
+**Verification advisory:** [`test-results/credential-rotation-advisory.md`](file:///test-results/credential-rotation-advisory.md)
+
+**Tasks**
+- [x] Enforce tenant-safe read queries filtering strictly by `session.userId`.
+- [x] Add Electron IPC test suite covering channel whitelisting and argument validation (`tests/security/electron-ipc.test.ts`).
+- [x] Add modal state reset test suite (`tests/unit/modal-state-reset.test.ts`).
+- [x] Publish credential rotation advisory for previously exposed development keys.
+
+**Acceptance criteria**
+- [x] Tenant-safe reads verified across all collections and media queries.
+- [x] Electron IPC security verified with 10 automated unit tests.
+- [x] Modal state synchronization verified with automated tests.
+
+### Milestone 1.2 — Electron navigation security [COMPLETE]
+**Status:** Complete  
+**Implementation commit:** [`c208385ec85e5757217b2afe1e89fbebb693563f`](https://github.com/AryanTechie-007/MLocker/commit/c208385ec85e5757217b2afe1e89fbebb693563f)  
+**Documentation commit:** [`9369ea6e492b45e9985923984d4715b7fb582372`](https://github.com/AryanTechie-007/MLocker/commit/9369ea6e492b45e9985923984d4715b7fb582372)  
+**Verification report:** [`test-results/milestone-1.2-electron-navigation-report.md`](file:///test-results/milestone-1.2-electron-navigation-report.md)
+
+**Tasks**
+- [x] Unify navigation handlers in `electron/ipc-handlers.js` (`handleWindowOpen`, `handleWillNavigate`).
+- [x] Deny child window creation unconditionally (`action: "deny"`).
+- [x] Delegate external `http:` and `https:` URLs to system default browser via `shell.openExternal`.
+- [x] Block dangerous schemes (`file:`, `javascript:`, `data:`, `smb:`, custom protocols).
+- [x] Add 16 automated tests in `tests/security/electron-navigation.test.ts`.
+
+**Acceptance criteria**
+- [x] Zero child windows can be opened by renderer content.
+- [x] Untrusted or dangerous schemes cannot execute through the system shell.
+
+### Milestone 1.2.1 — Protocol allowlist correction [COMPLETE]
+**Status:** Complete  
+**Implementation commit:** [`856538c42f6a46039ae0db6edf8c7b72b2f4d0fe`](https://github.com/AryanTechie-007/MLocker/commit/856538c42f6a46039ae0db6edf8c7b72b2f4d0fe)  
+**Documentation commit:** [`25f7835efb93fb70c79b9fa13511b816ee3844ce`](https://github.com/AryanTechie-007/MLocker/commit/25f7835efb93fb70c79b9fa13511b816ee3844ce)  
+**Verification report:** [`test-results/milestone-1.2-electron-navigation-report.md`](file:///test-results/milestone-1.2-electron-navigation-report.md) (Section 5)  
+**CI verification:** GitHub Actions Run [44525905345](https://github.com/AryanTechie-007/MLocker/actions/runs/44525905345) (`status: completed` / `conclusion: success`, 93/93 tests passing across 8 suites).
+
+**Tasks**
+- [x] Re-order security checks in `handleWillNavigate()` to enforce the strict protocol allowlist (`http:`, `https:`) **before** origin comparison.
+- [x] Block same-origin `blob:` and `filesystem:` schemes from in-window navigation.
+- [x] Add 4 edge-case regression tests (expanding the navigation suite to 20 tests).
+
+**Acceptance criteria**
+- [x] Non-HTTP/HTTPS protocols cannot navigate in-window even if their parsed origin matches localhost.
+- [x] CI passes with all 93 tests green.
 
 ### Milestone 2 — Database and desktop reliability [COMPLETE]
+**Status:** Complete  
+**Implementation commit:** [`1b1481f33a8bcefe7fc677611c080d9ad2eb77e6`](https://github.com/AryanTechie-007/MLocker/commit/1b1481f33a8bcefe7fc677611c080d9ad2eb77e6)  
+**Follow-up commits:** [`5c794cb3fc2202613d5cfca7431e285a8508f7ce`](https://github.com/AryanTechie-007/MLocker/commit/5c794cb3fc2202613d5cfca7431e285a8508f7ce) (CI Node 24 update), [`8c12fe489a4d64b86fa207a28dab326883700286`](https://github.com/AryanTechie-007/MLocker/commit/8c12fe489a4d64b86fa207a28dab326883700286) (cross-platform test blocker)  
+**Documentation commit:** [`aebf1a469a4dc5db8ffcff0a3aa93eb83d47ad9c`](https://github.com/AryanTechie-007/MLocker/commit/aebf1a469a4dc5db8ffcff0a3aa93eb83d47ad9c)  
+**Verification report:** [`test-results/milestone-2-database-report.md`](file:///test-results/milestone-2-database-report.md)  
+**CI verification:** GitHub Actions Run [44532724671](https://github.com/AryanTechie-007/MLocker/actions/runs/44532724671) (`status: completed` / `conclusion: success`, 109/109 tests passing across 9 suites).
+
 **Tasks**
 - [x] Add Prisma migrations for all supported environments (`prisma/migrations/20261119000000_init`).
 - [x] Move desktop database storage to Electron's user-data directory (`app.getPath('userData')`).
@@ -335,16 +420,63 @@ Work in small pull requests. Each milestone must be reviewed and tested before t
 - [x] The application does not depend on a developer's local `prisma/dev.db`.
 - [x] Database migration and recovery steps are documented in `test-results/milestone-2-database-report.md`.
 
-### Milestone 3 — Six media categories
+### Milestone 2.1 — Database lifecycle corrective audit [COMPLETE]
+**Status:** Complete  
+**Implementation commits:**
+- [`fc8f6b360ba663be0b8df780c80b54fa31697e68`](https://github.com/AryanTechie-007/MLocker/commit/fc8f6b360ba663be0b8df780c80b54fa31697e68) (core corrective audit: single migration source of truth, authentic SHA-256 checksums, fail-safe backups with rollback, test DB isolation, shutdown sequencing engine)
+- [`30033d295f58e7fee93d66b8631360d50f9e9411`](https://github.com/AryanTechie-007/MLocker/commit/30033d295f58e7fee93d66b8631360d50f9e9411) (strict structural legacy validation for foreign keys, unique indexes, and Windows Electron CI job)
+- [`74a60decde3f813cbfbfb1e02dcb1744be216f99`](https://github.com/AryanTechie-007/MLocker/commit/74a60decde3f813cbfbfb1e02dcb1744be216f99) (complete SQLite column definition validation, semantic default equivalence, and verified graceful Windows Electron shutdown in CI)  
+**Documentation commits:** [`2347003`](https://github.com/AryanTechie-007/MLocker/commit/234700346387a6b5790be6b149b5cf4e82f76378), [`7264cf7`](https://github.com/AryanTechie-007/MLocker/commit/7264cf78b663b7df8ad4518d6a8a44ecad9c84e1), [`b16c159`](https://github.com/AryanTechie-007/MLocker/commit/b16c1598f863b7e7343e06716035272a24c16a62), [`2e7560d`](https://github.com/AryanTechie-007/MLocker/commit/2e7560d96d3f2ec8c983ea190180c5c43d2f9746), [`dbf044e`](https://github.com/AryanTechie-007/MLocker/commit/dbf044eee05f81a359dfd00ba402e8b31ccc453b)  
+**Verification report:** [`test-results/milestone-2.1-corrective-report.md`](file:///test-results/milestone-2.1-corrective-report.md)  
+**CI verification:** GitHub Actions Run [44569027391](https://github.com/AryanTechie-007/MLocker/actions/runs/44569027391) (`status: completed` / `conclusion: success`, 143/143 tests passing across 14 suites, dual-platform Ubuntu + Windows packaged Electron clean-install and verified graceful shutdown with exit code 0).
+
 **Tasks**
-- Trace Manga and Novel support through schema, search integrations, unified search, manual entry, filters, library tabs and detail pages.
-- Fix missing integrations and type fall-through.
-- Add category-specific progress fields where needed without duplicating the entire media model.
-- Add tests for search and CRUD across all six categories.
+- [x] Establish single migration source of truth (`prisma/migrations/20261119000000_init/migration.sql`), resolving divergent `updatedAt` defaults and using authentic SHA-256 checksums in `_prisma_migrations`.
+- [x] Implement structural legacy schema validation enforcing foreign keys (`ON DELETE CASCADE`), unique indexes, primary keys, and complete column definitions (nullability and defaults with semantic SQLite equivalence).
+- [x] Preserve safe upgrade paths for supported legacy databases legitimately omitting optional columns (`upgradeSupportedLegacySchema`).
+- [x] Make backup operations fail-safe: abort migration on failed checkpoint/backup; staged non-destructive restoration with rollback.
+- [x] Complete test database isolation in `tests/setup.ts` using worker-unique temporary databases in `os.tmpdir()`, leaving `prisma/dev.db` 100% untouched.
+- [x] Implement strict Electron shutdown sequencing in `electron/shutdown.js` (server drain -> server close -> Prisma disconnect -> SQLite WAL checkpoint TRUNCATE).
+- [x] Add dual-platform CI coverage in `.github/workflows/ci.yml` with verified packaged Windows Electron launch, database auto-provisioning, SQLite integrity check, and verified graceful shutdown (exit code 0).
 
 **Acceptance criteria**
-- Users can add, search, edit, browse and track all six categories consistently.
-- Unsupported external metadata is handled gracefully.
+- [x] Single migration source of truth verified across CLI and Electron migrator.
+- [x] Incompatible or corrupted legacy databases are safely rejected without modifying records.
+- [x] Test execution does not modify developer's `prisma/dev.db`.
+- [x] Windows packaged Electron runtime and graceful shutdown verified in CI.
+- [x] All 143 unit and integration tests passing.
+
+### Milestone 3 — Six media categories [NEXT / NOT STARTED]
+**Status:** Next / Not started  
+
+> [!IMPORTANT]
+> **Do not mark Milestone 3 as started or completed. No implementation for it has been authorized yet.**  
+> The first development activity for Milestone 3 is an **audit-only investigation**. No feature implementation should begin until the audit findings have been reviewed and approved.
+
+**Pre-implementation Audit Tasks**
+- [ ] Inspect existing naming conventions across codebase, schema, and database: determine whether `BOOK`, `NOVEL`, or other conventions already exist. Do not blindly rename enums or alter stored data.
+- [ ] Audit search providers and unified search logic (`src/lib/api/`) across all six categories:
+  - Movies (`MOVIE`)
+  - TV Shows (`TV_SHOW`)
+  - Anime (`ANIME`)
+  - Manga (`MANGA`)
+  - Games (`GAME`)
+  - Books/Novels (`BOOK`/`NOVEL`)
+- [ ] Audit CRUD APIs, validation schemas (`src/lib/domain/validation.ts`), and manual entry flows.
+- [ ] Audit library navigation tabs, category filters, and detail page layouts.
+- [ ] Audit category-specific progress tracking (episodes, chapters, pages, hours) to ensure clean extension without model duplication.
+- [ ] Produce a comprehensive Milestone 3 Audit Report for review before writing feature code.
+
+**Implementation Tasks (Pending Audit Review)**
+- [ ] Implement search provider integrations and type safety for missing categories.
+- [ ] Add category-specific progress fields where needed without duplicating the entire media model.
+- [ ] Implement request cancellation and debounce on unified search.
+- [ ] Add comprehensive tests for search, CRUD, and progress across all six categories.
+
+**Acceptance criteria**
+- [ ] An audit report is approved prior to feature implementation.
+- [ ] Users can add, search, edit, browse and track all six categories consistently.
+- [ ] Unsupported external metadata is handled gracefully.
 
 ### Milestone 4 — External source manager
 **Tasks**
@@ -534,28 +666,45 @@ Keep domain logic (source validation, session rules, sync merge rules) outside R
 
 ## 11. Progress tracker
 
-| Milestone | Status | Evidence / PR |
+| Milestone | Status | Evidence / Reference |
 |---|---|---|
-| **0. Repository baseline** | In progress | Baseline audit documented; zero code changes made |
-| **1. Security and stability** | Not started | |
-| **2. Database and desktop reliability** | Not started | |
-| **3. Six media categories** | Not started | |
-| **4. External source manager** | Not started | |
-| **5. Session engine** | Not started | |
-| **6. Browser extension MVP** | Not started | |
-| **7. Cloud sync** | Not started | |
-| **8. Analytics and quality** | Not started | |
-| **9. Advanced integrations** | Deferred | |
+| **0. Repository baseline** | Complete | Baseline audit documented; Vitest test runner and GitHub Actions CI configured ([`870543a`](https://github.com/AryanTechie-007/MLocker/commit/870543a152d113ae8a0e08f0a0c4f82875b2258a)) |
+| **1. Security and stability** | Complete | Auth enforcement, relational IDOR remediation, Zod validation, credential cleanup ([`2b933d5`](https://github.com/AryanTechie-007/MLocker/commit/2b933d5c089913ce7a139372f3d4329fdb1df986), CI run [44519584927](https://github.com/AryanTechie-007/MLocker/actions/runs/44519584927), [`test-results/milestone-1-security-report.md`](file:///test-results/milestone-1-security-report.md)) |
+| **1.1. Residual security fixes** | Complete | Tenant-safe reads, Electron IPC test suite, modal reset test suite, rotation advisory ([`5e14af1`](https://github.com/AryanTechie-007/MLocker/commit/5e14af180d710e1b285657be0644c1cd331a82ca), [`test-results/credential-rotation-advisory.md`](file:///test-results/credential-rotation-advisory.md)) |
+| **1.2. Electron navigation security** | Complete | In-window origin allowlist, child window denial, safe external HTTP/HTTPS delegation ([`c208385`](https://github.com/AryanTechie-007/MLocker/commit/c208385ec85e5757217b2afe1e89fbebb693563f), [`test-results/milestone-1.2-electron-navigation-report.md`](file:///test-results/milestone-1.2-electron-navigation-report.md)) |
+| **1.2.1. Protocol allowlist correction** | Complete | Protocol allowlist enforced before origin check in `handleWillNavigate()` ([`856538c`](https://github.com/AryanTechie-007/MLocker/commit/856538c42f6a46039ae0db6edf8c7b72b2f4d0fe), CI run [44525905345](https://github.com/AryanTechie-007/MLocker/actions/runs/44525905345)) |
+| **2. Database and desktop reliability** | Complete | Embedded SQLite migration runner, WAL journal mode, pre-migration backups, persistent userData path ([`1b1481f`](https://github.com/AryanTechie-007/MLocker/commit/1b1481f33a8bcefe7fc677611c080d9ad2eb77e6), [`8c12fe4`](https://github.com/AryanTechie-007/MLocker/commit/8c12fe489a4d64b86fa207a28dab326883700286), CI run [44532724671](https://github.com/AryanTechie-007/MLocker/actions/runs/44532724671), [`test-results/milestone-2-database-report.md`](file:///test-results/milestone-2-database-report.md)) |
+| **2.1. Database lifecycle corrective audit** | Complete | Single migration source of truth, strict structural legacy validation, semantic default equivalence, isolated test DB, graceful Windows Electron shutdown ([`fc8f6b3`](https://github.com/AryanTechie-007/MLocker/commit/fc8f6b360ba663be0b8df780c80b54fa31697e68), [`30033d2`](https://github.com/AryanTechie-007/MLocker/commit/30033d295f58e7fee93d66b8631360d50f9e9411), [`74a60de`](https://github.com/AryanTechie-007/MLocker/commit/74a60decde3f813cbfbfb1e02dcb1744be216f99), CI run [44569027391](https://github.com/AryanTechie-007/MLocker/actions/runs/44569027391), [`test-results/milestone-2.1-corrective-report.md`](file:///test-results/milestone-2.1-corrective-report.md)) |
+| **3. Six media categories** | Next / Not started | Milestone 3 audit-only investigation required before feature implementation begins |
+| **4. External source manager** | Not started | Blocked on Milestone 3 completion |
+| **5. Session engine** | Not started | Blocked on Milestone 4 completion |
+| **6. Browser extension MVP** | Not started | Blocked on Milestone 5 completion |
+| **7. Cloud sync** | Not started | Blocked on Milestone 6 completion |
+| **8. Analytics and quality** | Not started | Blocked on Milestone 7 completion |
+| **9. Advanced integrations** | Deferred | Planned post-MVP |
 
 ---
 
-## 12. First developer deliverable
+## 12. Next developer deliverable — Milestone 3 audit
 
-Before writing feature code, produce a short baseline report containing:
-1. Current branch and latest commit.
-2. Existing scripts and results for lint, typecheck, tests and build.
-3. Confirmation of each known audit finding (reproduced, fixed already, or not applicable).
-4. Proposed exact files/schema/API changes for Milestone 1.
-5. Risks and questions that genuinely block implementation.
+**Current position:** Milestones 0 through 2.1 are complete and verified. The next development activity is an **audit-only investigation** for Milestone 3 (Six Media Categories).
 
-Then begin Milestone 1. Do not start the browser extension or cloud-sync implementation before the security and database foundations are stable.
+Before any feature code is written:
+1. Conduct an audit-only investigation covering:
+   - Movies (`MOVIE`)
+   - TV Shows (`TV_SHOW`)
+   - Anime (`ANIME`)
+   - Manga (`MANGA`)
+   - Games (`GAME`)
+   - Books/Novels (`BOOK`/`NOVEL`)
+2. Inspect:
+   - Database schema and Prisma models
+   - Category naming conventions across the codebase (`BOOK` vs `NOVEL` vs `BOOKS_NOVELS`)
+   - Metadata search providers and unified search logic
+   - Manual entry, validation schemas, and CRUD APIs
+   - Library filters, navigation tabs, and detail pages
+   - Category-specific progress tracking fields (episodes, chapters, pages, hours)
+   - Existing automated test coverage and gaps
+3. Determine existing naming conventions and data representation. Do not blindly rename enums, change database columns, or alter stored data without documented justification.
+4. Document all findings, type contracts, and proposed implementation steps in a dedicated audit report.
+5. **Wait for review and approval before beginning any Milestone 3 implementation.** Do not start feature code until the audit findings are confirmed.
