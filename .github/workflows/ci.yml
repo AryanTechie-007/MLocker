@@ -8,7 +8,7 @@ on:
 
 jobs:
   ci:
-    name: Build and Test
+    name: Build and Test (Linux)
     runs-on: ubuntu-latest
 
     env:
@@ -45,3 +45,93 @@ jobs:
 
       - name: Build Next.js
         run: npm run build
+
+  electron-windows:
+    name: Electron Windows Package & Runtime Validation
+    runs-on: windows-latest
+
+    env:
+      DATABASE_URL: "file:./dev.db"
+      NEXTAUTH_SECRET: "ci-secret-key-for-build-and-tests-12345"
+      NEXTAUTH_URL: "http://localhost:3000"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client & apply SQLite migrations
+        run: |
+          npx prisma generate
+          npx prisma migrate deploy
+
+      - name: Build Next.js & package Electron application
+        run: npm run electron:pack
+
+      - name: Verify clean-install packaged Electron runtime
+        shell: powershell
+        run: |
+          $cleanDir = Join-Path $env:TEMP ("mlocker-ci-pack-" + [System.Guid]::NewGuid().ToString())
+          New-Item -ItemType Directory -Path $cleanDir | Out-Null
+          $exePath = Resolve-Path "dist\win-unpacked\Media Locker.exe"
+          Write-Host "Launching packaged executable with clean userData at $cleanDir"
+
+          $proc = Start-Process -FilePath $exePath -ArgumentList "--user-data-dir=`"$cleanDir`"" -PassThru
+          Start-Sleep -Seconds 6
+
+          if ($proc.HasExited) {
+            throw "Packaged Electron app terminated prematurely (exit code: $($proc.ExitCode))"
+          }
+
+          $dbPath = Join-Path $cleanDir "mlocker.db"
+          if (-not (Test-Path $dbPath)) {
+            Stop-Process -Id $proc.Id -Force
+            throw "Expected provisioned database was not created at $dbPath"
+          }
+
+          # Verify database schema, version, and integrity using node:sqlite
+          $inspectScript = @"
+          const { DatabaseSync } = require('node:sqlite');
+          const db = new DatabaseSync('$($dbPath -replace '\\', '/')');
+          const version = db.prepare('PRAGMA user_version').get();
+          const integrity = db.prepare('PRAGMA integrity_check').all();
+          const tables = db.prepare('SELECT name FROM sqlite_master WHERE type = ?').all('table').map(t => t.name);
+          console.log('Version:', JSON.stringify(version));
+          console.log('Integrity:', JSON.stringify(integrity));
+          console.log('Tables:', JSON.stringify(tables));
+          if (!version || version.user_version !== 1) {
+            console.error('Invalid version: expected 1, got', version);
+            process.exit(1);
+          }
+          if (!integrity || integrity.length === 0 || integrity[0].integrity_check !== 'ok') {
+            console.error('Integrity check failed:', integrity);
+            process.exit(1);
+          }
+          const required = ['User', 'UserMedia', 'Collection', 'CollectionItem', '_prisma_migrations'];
+          for (const req of required) {
+            if (!tables.includes(req)) {
+              console.error('Missing table:', req);
+              process.exit(1);
+            }
+          }
+          console.log('CI Database Verification Passed Successfully!');
+          "@
+
+          node -e "$inspectScript"
+          $nodeExit = $LASTEXITCODE
+
+          Stop-Process -Id $proc.Id -Force
+          Remove-Item -Recurse -Force $cleanDir -ErrorAction SilentlyContinue
+
+          if ($nodeExit -ne 0) {
+            throw "Database verification script exited with code $nodeExit"
+          }
+          Write-Host "Packaged Electron runtime verification on Windows passed successfully."

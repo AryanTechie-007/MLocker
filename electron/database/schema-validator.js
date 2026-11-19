@@ -17,58 +17,132 @@ class SchemaValidationError extends Error {
  */
 const BASELINE_COLUMNS = {
   User: [
-    { name: "id", required: true },
-    { name: "email", required: true },
-    { name: "createdAt", required: true },
-    { name: "name", required: false },
-    { name: "passwordHash", required: false },
-    { name: "image", required: false },
+    { name: "id", type: "TEXT", notnull: true, pk: true, required: true },
+    { name: "name", type: "TEXT", notnull: false, pk: false, required: false },
+    { name: "email", type: "TEXT", notnull: true, pk: false, required: true },
+    { name: "passwordHash", type: "TEXT", notnull: false, pk: false, required: false },
+    { name: "image", type: "TEXT", notnull: false, pk: false, required: false },
+    { name: "createdAt", type: "DATETIME", notnull: true, pk: false, required: true },
   ],
   UserMedia: [
-    { name: "id", required: true },
-    { name: "userId", required: true },
-    { name: "mediaType", required: true },
-    { name: "title", required: true },
-    { name: "createdAt", required: true },
-    { name: "updatedAt", required: true },
-    { name: "status", required: false, dflt: "'plan_to_consume'" },
-    { name: "rating", required: false },
-    { name: "review", required: false },
-    { name: "isFavorite", required: false, dflt: "0" },
-    { name: "totalEpisodes", required: false },
-    { name: "watchedEpisodes", required: false },
-    { name: "totalChapters", required: false },
-    { name: "readChapters", required: false },
-    { name: "hoursPlayed", required: false },
-    { name: "startDate", required: false },
-    { name: "endDate", required: false },
-    { name: "tags", required: false },
-    { name: "genres", required: false },
-    { name: "overview", required: false },
-    { name: "posterUrl", required: false },
-    { name: "year", required: false },
-    { name: "externalId", required: false },
-    { name: "externalSource", required: false },
+    { name: "id", type: "TEXT", notnull: true, pk: true, required: true },
+    { name: "userId", type: "TEXT", notnull: true, pk: false, required: true },
+    { name: "mediaType", type: "TEXT", notnull: true, pk: false, required: true },
+    { name: "externalId", type: "TEXT", notnull: false, pk: false, required: false },
+    { name: "externalSource", type: "TEXT", notnull: false, pk: false, required: false },
+    { name: "title", type: "TEXT", notnull: true, pk: false, required: true },
+    { name: "posterUrl", type: "TEXT", notnull: false, pk: false, required: false },
+    { name: "year", type: "INTEGER", notnull: false, pk: false, required: false },
+    { name: "genres", type: "TEXT", notnull: false, pk: false, required: false },
+    { name: "overview", type: "TEXT", notnull: false, pk: false, required: false },
+    { name: "status", type: "TEXT", notnull: true, pk: false, required: false, dflt: "'plan_to_consume'" },
+    { name: "rating", type: "REAL", notnull: false, pk: false, required: false },
+    { name: "review", type: "TEXT", notnull: false, pk: false, required: false },
+    { name: "isFavorite", type: "BOOLEAN", notnull: true, pk: false, required: false, dflt: "0" },
+    { name: "totalEpisodes", type: "INTEGER", notnull: false, pk: false, required: false },
+    { name: "watchedEpisodes", type: "INTEGER", notnull: false, pk: false, required: false },
+    { name: "totalChapters", type: "INTEGER", notnull: false, pk: false, required: false },
+    { name: "readChapters", type: "INTEGER", notnull: false, pk: false, required: false },
+    { name: "hoursPlayed", type: "REAL", notnull: false, pk: false, required: false },
+    { name: "startDate", type: "DATETIME", notnull: false, pk: false, required: false },
+    { name: "endDate", type: "DATETIME", notnull: false, pk: false, required: false },
+    { name: "tags", type: "TEXT", notnull: false, pk: false, required: false },
+    { name: "createdAt", type: "DATETIME", notnull: true, pk: false, required: true },
+    { name: "updatedAt", type: "DATETIME", notnull: true, pk: false, required: true },
   ],
   Collection: [
-    { name: "id", required: true },
-    { name: "userId", required: true },
-    { name: "name", required: true },
-    { name: "createdAt", required: true },
-    { name: "updatedAt", required: true },
-    { name: "description", required: false },
-    { name: "coverUrl", required: false },
+    { name: "id", type: "TEXT", notnull: true, pk: true, required: true },
+    { name: "userId", type: "TEXT", notnull: true, pk: false, required: true },
+    { name: "name", type: "TEXT", notnull: true, pk: false, required: true },
+    { name: "description", type: "TEXT", notnull: false, pk: false, required: false },
+    { name: "coverUrl", type: "TEXT", notnull: false, pk: false, required: false },
+    { name: "createdAt", type: "DATETIME", notnull: true, pk: false, required: true },
+    { name: "updatedAt", type: "DATETIME", notnull: true, pk: false, required: true },
   ],
   CollectionItem: [
-    { name: "id", required: true },
-    { name: "collectionId", required: true },
-    { name: "userMediaId", required: true },
-    { name: "order", required: false, dflt: "0" },
-    { name: "createdAt", required: true },
+    { name: "id", type: "TEXT", notnull: true, pk: true, required: true },
+    { name: "collectionId", type: "TEXT", notnull: true, pk: false, required: true },
+    { name: "userMediaId", type: "TEXT", notnull: true, pk: false, required: true },
+    { name: "order", type: "INTEGER", notnull: true, pk: false, required: false, dflt: "0" },
+    { name: "createdAt", type: "DATETIME", notnull: true, pk: false, required: true },
   ],
 };
 
 const REQUIRED_TABLES = Object.keys(BASELINE_COLUMNS);
+
+/**
+ * Expected foreign key relationships in baseline v1.
+ */
+const BASELINE_FOREIGN_KEYS = {
+  User: [],
+  UserMedia: [
+    {
+      table: "User",
+      from: "userId",
+      to: "id",
+      on_delete: "CASCADE",
+      on_update: "CASCADE",
+    },
+  ],
+  Collection: [
+    {
+      table: "User",
+      from: "userId",
+      to: "id",
+      on_delete: "CASCADE",
+      on_update: "CASCADE",
+    },
+  ],
+  CollectionItem: [
+    {
+      table: "Collection",
+      from: "collectionId",
+      to: "id",
+      on_delete: "CASCADE",
+      on_update: "CASCADE",
+    },
+    {
+      table: "UserMedia",
+      from: "userMediaId",
+      to: "id",
+      on_delete: "CASCADE",
+      on_update: "CASCADE",
+    },
+  ],
+};
+
+/**
+ * Expected indexes in baseline v1.
+ */
+const BASELINE_INDEXES = {
+  User: [
+    { name: "User_email_key", unique: true, columns: ["email"] },
+  ],
+  UserMedia: [
+    { name: "UserMedia_userId_mediaType_idx", unique: false, columns: ["userId", "mediaType"] },
+    { name: "UserMedia_userId_status_idx", unique: false, columns: ["userId", "status"] },
+    { name: "UserMedia_userId_mediaType_externalId_key", unique: true, columns: ["userId", "mediaType", "externalId"] },
+  ],
+  Collection: [
+    { name: "Collection_userId_idx", unique: false, columns: ["userId"] },
+  ],
+  CollectionItem: [
+    { name: "CollectionItem_collectionId_userMediaId_key", unique: true, columns: ["collectionId", "userMediaId"] },
+  ],
+};
+
+/**
+ * Normalizes SQLite column type for comparison.
+ */
+function normalizeType(type) {
+  const t = (type || "").toUpperCase().trim();
+  if (t === "INT" || t === "INTEGER") return "INTEGER";
+  if (t === "REAL" || t === "FLOAT" || t === "DOUBLE" || t === "NUMERIC") return "REAL";
+  if (t === "TEXT" || t === "VARCHAR" || t.startsWith("VARCHAR")) return "TEXT";
+  if (t === "DATETIME" || t === "TIMESTAMP") return "DATETIME";
+  if (t === "BOOLEAN") return "BOOLEAN";
+  return t;
+}
 
 /**
  * Returns list of user tables in the SQLite database.
@@ -91,7 +165,8 @@ function inspectTableColumns(db, tableName) {
     return rows.map((r) => ({
       cid: r.cid,
       name: r.name,
-      type: (r.type || "").toUpperCase(),
+      type: normalizeType(r.type),
+      rawType: (r.type || "").toUpperCase(),
       notnull: Boolean(r.notnull),
       dflt_value: r.dflt_value,
       pk: Boolean(r.pk),
@@ -136,8 +211,8 @@ function inspectTableForeignKeys(db, tableName) {
       table: fk.table,
       from: fk.from,
       to: fk.to,
-      on_update: fk.on_update,
-      on_delete: fk.on_delete,
+      on_update: (fk.on_update || "").toUpperCase(),
+      on_delete: (fk.on_delete || "").toUpperCase(),
     }));
   } catch {
     return [];
@@ -172,6 +247,12 @@ function inspectDatabaseSchema(db) {
  * Verifies whether an existing database with PRAGMA user_version = 0
  * is compatible with the baseline schema or is a supported legacy variant.
  *
+ * Checks:
+ * 1. Table presence.
+ * 2. Column presence, types, nullability, and primary key definitions.
+ * 3. Foreign-key relationships (target table, columns, and CASCADE rules).
+ * 4. Required unique constraints and performance indexes.
+ *
  * @param {import('node:sqlite').DatabaseSync} db
  * @returns {{
  *   type: 'FRESH' | 'EXACT_BASELINE' | 'SUPPORTED_LEGACY' | 'UNSUPPORTED',
@@ -179,6 +260,10 @@ function inspectDatabaseSchema(db) {
  *   missingTables: string[],
  *   missingRequiredColumns: Record<string, string[]>,
  *   missingOptionalColumns: Record<string, string[]>,
+ *   incompatibleColumns: Record<string, string[]>,
+ *   missingForeignKeys: Record<string, string[]>,
+ *   missingUniqueIndexes: Record<string, string[]>,
+ *   missingIndexes: Record<string, string[]>,
  *   reasons: string[]
  * }}
  */
@@ -192,6 +277,10 @@ function validateLegacySchema(db) {
       missingTables: [],
       missingRequiredColumns: {},
       missingOptionalColumns: {},
+      incompatibleColumns: {},
+      missingForeignKeys: {},
+      missingUniqueIndexes: {},
+      missingIndexes: {},
       reasons: [],
     };
   }
@@ -200,6 +289,10 @@ function validateLegacySchema(db) {
   const missingTables = REQUIRED_TABLES.filter((t) => !existingTables.has(t));
   const missingRequiredColumns = {};
   const missingOptionalColumns = {};
+  const incompatibleColumns = {};
+  const missingForeignKeys = {};
+  const missingUniqueIndexes = {};
+  const missingIndexes = {};
   const reasons = [];
 
   if (missingTables.length > 0) {
@@ -209,51 +302,162 @@ function validateLegacySchema(db) {
   for (const tableName of REQUIRED_TABLES) {
     if (!existingTables.has(tableName)) continue;
 
-    const existingCols = new Set(schema.tables[tableName].columns.map((c) => c.name));
+    const inspectedTable = schema.tables[tableName];
+    const existingColsMap = new Map(inspectedTable.columns.map((c) => [c.name, c]));
     const baselineCols = BASELINE_COLUMNS[tableName];
 
-    const missingReq = baselineCols
-      .filter((c) => c.required && !existingCols.has(c.name))
-      .map((c) => c.name);
+    // Check column presence, nullability, primary key, and type
+    for (const bCol of baselineCols) {
+      const eCol = existingColsMap.get(bCol.name);
 
-    const missingOpt = baselineCols
-      .filter((c) => !c.required && !existingCols.has(c.name))
-      .map((c) => c.name);
+      if (!eCol) {
+        if (bCol.required) {
+          if (!missingRequiredColumns[tableName]) missingRequiredColumns[tableName] = [];
+          missingRequiredColumns[tableName].push(bCol.name);
+          reasons.push(`Table '${tableName}' is missing required column: ${bCol.name}`);
+        } else {
+          if (!missingOptionalColumns[tableName]) missingOptionalColumns[tableName] = [];
+          missingOptionalColumns[tableName].push(bCol.name);
+        }
+        continue;
+      }
 
-    if (missingReq.length > 0) {
-      missingRequiredColumns[tableName] = missingReq;
-      reasons.push(`Table '${tableName}' is missing required columns: ${missingReq.join(", ")}`);
+      // Verify Primary Key definition
+      if (bCol.pk && !eCol.pk) {
+        if (!incompatibleColumns[tableName]) incompatibleColumns[tableName] = [];
+        incompatibleColumns[tableName].push(`${bCol.name} (must be PRIMARY KEY)`);
+        reasons.push(`Column '${tableName}.${bCol.name}' must be PRIMARY KEY`);
+      }
+
+      // Verify Nullability on required columns
+      if (bCol.required && bCol.notnull && !eCol.notnull) {
+        if (!incompatibleColumns[tableName]) incompatibleColumns[tableName] = [];
+        incompatibleColumns[tableName].push(`${bCol.name} (must be NOT NULL)`);
+        reasons.push(`Column '${tableName}.${bCol.name}' must be NOT NULL`);
+      }
+
+      // Verify compatible type
+      const normalizedExpected = normalizeType(bCol.type);
+      if (eCol.type !== normalizedExpected && !(normalizedExpected === "BOOLEAN" && eCol.type === "INTEGER")) {
+        if (!incompatibleColumns[tableName]) incompatibleColumns[tableName] = [];
+        incompatibleColumns[tableName].push(`${bCol.name} (expected ${normalizedExpected}, got ${eCol.type})`);
+        reasons.push(`Column '${tableName}.${bCol.name}' has incompatible type: expected ${normalizedExpected}, got ${eCol.type}`);
+      }
     }
 
-    if (missingOpt.length > 0) {
-      missingOptionalColumns[tableName] = missingOpt;
+    // Verify Foreign Key relationships
+    const expectedFks = BASELINE_FOREIGN_KEYS[tableName] || [];
+    const actualFks = inspectedTable.foreignKeys || [];
+
+    for (const expFk of expectedFks) {
+      const match = actualFks.find(
+        (afk) =>
+          afk.table === expFk.table &&
+          afk.from === expFk.from &&
+          afk.to === expFk.to &&
+          afk.on_delete === expFk.on_delete &&
+          afk.on_update === expFk.on_update
+      );
+
+      if (!match) {
+        if (!missingForeignKeys[tableName]) missingForeignKeys[tableName] = [];
+        const desc = `FOREIGN KEY (${expFk.from}) REFERENCES ${expFk.table}(${expFk.to}) ON DELETE ${expFk.on_delete} ON UPDATE ${expFk.on_update}`;
+        missingForeignKeys[tableName].push(desc);
+        reasons.push(`Table '${tableName}' missing foreign key: ${desc}`);
+      }
+    }
+
+    // Verify Indexes and Uniqueness constraints
+    const expectedIdxs = BASELINE_INDEXES[tableName] || [];
+    const actualIdxs = inspectedTable.indexes || [];
+
+    for (const expIdx of expectedIdxs) {
+      const match = actualIdxs.find((aIdx) => {
+        if (expIdx.unique && !aIdx.unique) return false;
+        if (aIdx.columns.length !== expIdx.columns.length) return false;
+        return expIdx.columns.every((c, i) => aIdx.columns[i] === c);
+      });
+
+      if (!match) {
+        const desc = `${expIdx.unique ? "UNIQUE " : ""}INDEX on (${expIdx.columns.join(", ")})`;
+        const allColsExist = expIdx.columns.every((c) => existingColsMap.has(c));
+        if (expIdx.unique) {
+          if (allColsExist) {
+            // A unique constraint is missing on existing columns! Relational uniqueness violated.
+            if (!missingUniqueIndexes[tableName]) missingUniqueIndexes[tableName] = [];
+            missingUniqueIndexes[tableName].push(desc);
+            reasons.push(`Table '${tableName}' missing required unique constraint: ${desc}`);
+          } else {
+            // Index depends on an optional column that will be added during upgrade
+            if (!missingIndexes[tableName]) missingIndexes[tableName] = [];
+            missingIndexes[tableName].push(desc);
+            reasons.push(`Table '${tableName}' missing index (depends on legacy column): ${desc}`);
+          }
+        } else {
+          if (!missingIndexes[tableName]) missingIndexes[tableName] = [];
+          missingIndexes[tableName].push(desc);
+          reasons.push(`Table '${tableName}' missing performance index: ${desc}`);
+        }
+      }
     }
   }
 
   const hasMissingTables = missingTables.length > 0;
   const hasMissingRequired = Object.keys(missingRequiredColumns).length > 0;
   const hasMissingOptional = Object.keys(missingOptionalColumns).length > 0;
+  const hasIncompatible = Object.keys(incompatibleColumns).length > 0;
+  const hasMissingFk = Object.keys(missingForeignKeys).length > 0;
+  const hasMissingUniqueIdx = Object.keys(missingUniqueIndexes).length > 0;
+  const hasMissingNonUniqueIdx = Object.keys(missingIndexes).length > 0;
 
-  // Exact baseline match
-  if (!hasMissingTables && !hasMissingRequired && !hasMissingOptional) {
+  // Exact baseline: all tables, columns, constraints, foreign keys, and indexes match
+  if (
+    !hasMissingTables &&
+    !hasMissingRequired &&
+    !hasMissingOptional &&
+    !hasIncompatible &&
+    !hasMissingFk &&
+    !hasMissingUniqueIdx &&
+    !hasMissingNonUniqueIdx
+  ) {
     return {
       type: "EXACT_BASELINE",
       isCompatible: true,
       missingTables: [],
       missingRequiredColumns: {},
       missingOptionalColumns: {},
+      incompatibleColumns: {},
+      missingForeignKeys: {},
+      missingUniqueIndexes: {},
+      missingIndexes: {},
       reasons: [],
     };
   }
 
-  // Supported legacy: has all 4 core tables and all required columns, but missing known optional/defaulted columns
-  if (!hasMissingTables && !hasMissingRequired && hasMissingOptional) {
+  // Supported legacy:
+  // - All 4 core tables exist.
+  // - No missing required columns, no incompatible column types or PK definitions.
+  // - Required foreign key relationships exist.
+  // - Required UNIQUE constraints exist on all existing columns.
+  // - Only missing optional columns or optional non-unique indexes that upgradeSupportedLegacySchema can safely add.
+  if (
+    !hasMissingTables &&
+    !hasMissingRequired &&
+    !hasIncompatible &&
+    !hasMissingFk &&
+    !hasMissingUniqueIdx &&
+    (hasMissingOptional || hasMissingNonUniqueIdx)
+  ) {
     return {
       type: "SUPPORTED_LEGACY",
       isCompatible: true,
       missingTables: [],
       missingRequiredColumns: {},
       missingOptionalColumns,
+      incompatibleColumns: {},
+      missingForeignKeys: {},
+      missingUniqueIndexes: {},
+      missingIndexes,
       reasons: [
         `Supported legacy schema detected: missing non-breaking columns (${Object.entries(missingOptionalColumns)
           .map(([t, cols]) => `${t}: [${cols.join(", ")}]`)
@@ -262,13 +466,17 @@ function validateLegacySchema(db) {
     };
   }
 
-  // Unsupported schema
+  // Unsupported schema: missing tables, missing required columns, incompatible PKs/types, missing FKs, or missing unique constraints
   return {
     type: "UNSUPPORTED",
     isCompatible: false,
     missingTables,
     missingRequiredColumns,
     missingOptionalColumns,
+    incompatibleColumns,
+    missingForeignKeys,
+    missingUniqueIndexes,
+    missingIndexes,
     reasons,
   };
 }
@@ -331,7 +539,7 @@ function upgradeSupportedLegacySchema(db, missingOptionalColumns, logger = conso
     }
   }
 
-  // Ensure baseline indexes exist
+  // Ensure all baseline indexes exist
   const INDEX_DDL = [
     'CREATE UNIQUE INDEX IF NOT EXISTS "User_email_key" ON "User"("email")',
     'CREATE INDEX IF NOT EXISTS "UserMedia_userId_mediaType_idx" ON "UserMedia"("userId", "mediaType")',
@@ -350,6 +558,8 @@ module.exports = {
   SchemaValidationError,
   BASELINE_COLUMNS,
   REQUIRED_TABLES,
+  BASELINE_FOREIGN_KEYS,
+  BASELINE_INDEXES,
   getDatabaseTables,
   inspectTableColumns,
   inspectTableIndexes,

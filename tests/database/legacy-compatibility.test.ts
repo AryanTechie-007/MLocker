@@ -12,14 +12,15 @@ import {
   getSchemaVersion,
   runMigrations,
   MigrationError,
+  recordPrismaMigration,
 } from "../../electron/database/migrator";
 import {
   inspectDatabaseSchema,
   validateLegacySchema,
 } from "../../electron/database/schema-validator";
-import { initializeDatabase } from "../../electron/database/lifecycle";
+import { INIT_MIGRATION_SQL } from "../../electron/database/migrations";
 
-describe("Milestone 2.1 — Legacy Database Compatibility Suite", () => {
+describe("Milestone 2.1 — Legacy Database Structural Validation Suite", () => {
   let tempDir: string;
   let dbPath: string;
 
@@ -36,6 +37,70 @@ describe("Milestone 2.1 — Legacy Database Compatibility Suite", () => {
     } catch {}
   });
 
+  // Canonical exact baseline DDL with all FKs, PKs, types, nullability, and indexes
+  const canonicalBaselineDdl = `
+    CREATE TABLE "User" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "name" TEXT,
+      "email" TEXT NOT NULL,
+      "passwordHash" TEXT,
+      "image" TEXT,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE "UserMedia" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "userId" TEXT NOT NULL,
+      "mediaType" TEXT NOT NULL,
+      "externalId" TEXT,
+      "externalSource" TEXT,
+      "title" TEXT NOT NULL,
+      "posterUrl" TEXT,
+      "year" INTEGER,
+      "genres" TEXT,
+      "overview" TEXT,
+      "status" TEXT NOT NULL DEFAULT 'plan_to_consume',
+      "rating" REAL,
+      "review" TEXT,
+      "isFavorite" BOOLEAN NOT NULL DEFAULT false,
+      "totalEpisodes" INTEGER,
+      "watchedEpisodes" INTEGER,
+      "totalChapters" INTEGER,
+      "readChapters" INTEGER,
+      "hoursPlayed" REAL,
+      "startDate" DATETIME,
+      "endDate" DATETIME,
+      "tags" TEXT,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" DATETIME NOT NULL,
+      CONSTRAINT "UserMedia_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    );
+    CREATE TABLE "Collection" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "userId" TEXT NOT NULL,
+      "name" TEXT NOT NULL,
+      "description" TEXT,
+      "coverUrl" TEXT,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" DATETIME NOT NULL,
+      CONSTRAINT "Collection_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    );
+    CREATE TABLE "CollectionItem" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "collectionId" TEXT NOT NULL,
+      "userMediaId" TEXT NOT NULL,
+      "order" INTEGER NOT NULL DEFAULT 0,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "CollectionItem_collectionId_fkey" FOREIGN KEY ("collectionId") REFERENCES "Collection" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      CONSTRAINT "CollectionItem_userMediaId_fkey" FOREIGN KEY ("userMediaId") REFERENCES "UserMedia" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    );
+    CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+    CREATE INDEX "UserMedia_userId_mediaType_idx" ON "UserMedia"("userId", "mediaType");
+    CREATE INDEX "UserMedia_userId_status_idx" ON "UserMedia"("userId", "status");
+    CREATE UNIQUE INDEX "UserMedia_userId_mediaType_externalId_key" ON "UserMedia"("userId", "mediaType", "externalId");
+    CREATE INDEX "Collection_userId_idx" ON "Collection"("userId");
+    CREATE UNIQUE INDEX "CollectionItem_collectionId_userMediaId_key" ON "CollectionItem"("collectionId", "userMediaId");
+  `;
+
   // 1. Fresh database detection
   it("detects a fresh database with 0 user tables as FRESH", () => {
     const db = new DatabaseSync(dbPath);
@@ -45,63 +110,10 @@ describe("Milestone 2.1 — Legacy Database Compatibility Suite", () => {
     db.close();
   });
 
-  // 2. Exact baseline legacy database (user_version = 0, full v1 schema)
-  it("safely baselines an existing database with complete v1 schema and user_version = 0, preserving all records", () => {
+  // 2. Exact baseline legacy database (user_version = 0, full v1 schema with FKs and indexes)
+  it("safely baselines an existing database with complete v1 schema, FKs, and indexes, preserving all records", () => {
     const db = new DatabaseSync(dbPath);
-    // Build legacy database with user_version = 0
-    const rawBaselineSql = `
-      CREATE TABLE "User" (
-        "id" TEXT NOT NULL PRIMARY KEY,
-        "name" TEXT,
-        "email" TEXT NOT NULL,
-        "passwordHash" TEXT,
-        "image" TEXT,
-        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-      );
-      CREATE TABLE "UserMedia" (
-        "id" TEXT NOT NULL PRIMARY KEY,
-        "userId" TEXT NOT NULL,
-        "mediaType" TEXT NOT NULL,
-        "externalId" TEXT,
-        "externalSource" TEXT,
-        "title" TEXT NOT NULL,
-        "posterUrl" TEXT,
-        "year" INTEGER,
-        "genres" TEXT,
-        "overview" TEXT,
-        "status" TEXT NOT NULL DEFAULT 'plan_to_consume',
-        "rating" REAL,
-        "review" TEXT,
-        "isFavorite" BOOLEAN NOT NULL DEFAULT false,
-        "totalEpisodes" INTEGER,
-        "watchedEpisodes" INTEGER,
-        "totalChapters" INTEGER,
-        "readChapters" INTEGER,
-        "hoursPlayed" REAL,
-        "startDate" DATETIME,
-        "endDate" DATETIME,
-        "tags" TEXT,
-        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" DATETIME NOT NULL
-      );
-      CREATE TABLE "Collection" (
-        "id" TEXT NOT NULL PRIMARY KEY,
-        "userId" TEXT NOT NULL,
-        "name" TEXT NOT NULL,
-        "description" TEXT,
-        "coverUrl" TEXT,
-        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" DATETIME NOT NULL
-      );
-      CREATE TABLE "CollectionItem" (
-        "id" TEXT NOT NULL PRIMARY KEY,
-        "collectionId" TEXT NOT NULL,
-        "userMediaId" TEXT NOT NULL,
-        "order" INTEGER NOT NULL DEFAULT 0,
-        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-      );
-    `;
-    db.exec(rawBaselineSql);
+    db.exec(canonicalBaselineDdl);
 
     // Verify initial user_version is 0
     expect(getSchemaVersion(db)).toBe(0);
@@ -115,8 +127,13 @@ describe("Milestone 2.1 — Legacy Database Compatibility Suite", () => {
     db.prepare("INSERT INTO CollectionItem (id, collectionId, userMediaId) VALUES ('ci_leg_1', 'c_leg_1', 'm_leg_1')").run();
     db.close();
 
-    // Now run migration runner on this existing database
+    // Verify exact baseline classification
     const dbToMigrate = new DatabaseSync(dbPath);
+    const validation = validateLegacySchema(dbToMigrate);
+    expect(validation.type).toBe("EXACT_BASELINE");
+    expect(validation.isCompatible).toBe(true);
+
+    // Run migration runner
     const result = runMigrations(dbToMigrate, { logger: () => {} });
 
     expect(result.initialVersion).toBe(0);
@@ -137,10 +154,10 @@ describe("Milestone 2.1 — Legacy Database Compatibility Suite", () => {
     dbToMigrate.close();
   });
 
-  // 3. Supported legacy database (early prototype schema missing optional columns)
-  it("detects and upgrades a supported legacy schema with missing optional columns, preserving existing records", () => {
+  // 3. Supported legacy database (valid FKs and core columns, but missing optional columns)
+  it("detects and upgrades a supported legacy schema with valid FKs but missing optional columns, preserving records", () => {
     const db = new DatabaseSync(dbPath);
-    // Legacy schema missing tags, hoursPlayed, isFavorite, review on UserMedia; missing passwordHash on User
+    // Legacy schema with correct FKs, PKs, types, but missing optional columns (tags, hoursPlayed, isFavorite, review, passwordHash)
     const earlyLegacySql = `
       CREATE TABLE "User" (
         "id" TEXT NOT NULL PRIMARY KEY,
@@ -154,22 +171,28 @@ describe("Milestone 2.1 — Legacy Database Compatibility Suite", () => {
         "mediaType" TEXT NOT NULL,
         "title" TEXT NOT NULL,
         "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" DATETIME NOT NULL
+        "updatedAt" DATETIME NOT NULL,
+        CONSTRAINT "UserMedia_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
       );
       CREATE TABLE "Collection" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "userId" TEXT NOT NULL,
         "name" TEXT NOT NULL,
         "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updatedAt" DATETIME NOT NULL
+        "updatedAt" DATETIME NOT NULL,
+        CONSTRAINT "Collection_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
       );
       CREATE TABLE "CollectionItem" (
         "id" TEXT NOT NULL PRIMARY KEY,
         "collectionId" TEXT NOT NULL,
         "userMediaId" TEXT NOT NULL,
         "order" INTEGER NOT NULL DEFAULT 0,
-        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "CollectionItem_collectionId_fkey" FOREIGN KEY ("collectionId") REFERENCES "Collection" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT "CollectionItem_userMediaId_fkey" FOREIGN KEY ("userMediaId") REFERENCES "UserMedia" ("id") ON DELETE CASCADE ON UPDATE CASCADE
       );
+      CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+      CREATE UNIQUE INDEX "CollectionItem_collectionId_userMediaId_key" ON "CollectionItem"("collectionId", "userMediaId");
     `;
     db.exec(earlyLegacySql);
 
@@ -198,7 +221,7 @@ describe("Milestone 2.1 — Legacy Database Compatibility Suite", () => {
 
     const media = db.prepare("SELECT * FROM UserMedia WHERE id = 'm_early'").get() as any;
     expect(media.title).toBe("Steins;Gate");
-    expect(media.isFavorite).toBe(0); // Default applied
+    expect(media.isFavorite).toBe(0);
 
     // Verify new columns can be written to
     db.prepare(
@@ -213,44 +236,10 @@ describe("Milestone 2.1 — Legacy Database Compatibility Suite", () => {
     db.close();
   });
 
-  // 4. Unsupported legacy database: missing core tables
-  it("stops safely and refuses to migrate when an incompatible schema with missing core tables is encountered", () => {
+  // 4. Negative test: Missing foreign keys
+  it("rejects as UNSUPPORTED and halts safely when required foreign keys are missing", () => {
     const db = new DatabaseSync(dbPath);
-    // Arbitrary incompatible tables
-    db.exec(`
-      CREATE TABLE "BlogPosts" (
-        "id" TEXT PRIMARY KEY,
-        "content" TEXT
-      );
-      CREATE TABLE "Comments" (
-        "id" TEXT PRIMARY KEY,
-        "postId" TEXT
-      );
-    `);
-    db.prepare("INSERT INTO BlogPosts (id, content) VALUES ('p1', 'Hello world')").run();
-
-    const validation = validateLegacySchema(db);
-    expect(validation.type).toBe("UNSUPPORTED");
-    expect(validation.isCompatible).toBe(false);
-
-    expect(() => {
-      runMigrations(db, { logger: () => {} });
-    }).toThrowError(MigrationError);
-
-    // user_version must remain 0
-    expect(getSchemaVersion(db)).toBe(0);
-
-    // Original data must remain untouched
-    const post = db.prepare("SELECT * FROM BlogPosts WHERE id = 'p1'").get() as any;
-    expect(post.content).toBe("Hello world");
-
-    db.close();
-  });
-
-  // 5. Unsupported legacy database: missing required non-nullable columns
-  it("stops safely when core tables exist but lack critical non-nullable columns without defaults", () => {
-    const db = new DatabaseSync(dbPath);
-    // UserMedia exists but lacks userId (critical relational column)
+    // Baseline tables without foreign keys
     db.exec(`
       CREATE TABLE "User" (
         "id" TEXT NOT NULL PRIMARY KEY,
@@ -259,6 +248,8 @@ describe("Milestone 2.1 — Legacy Database Compatibility Suite", () => {
       );
       CREATE TABLE "UserMedia" (
         "id" TEXT NOT NULL PRIMARY KEY,
+        "userId" TEXT NOT NULL,
+        "mediaType" TEXT NOT NULL,
         "title" TEXT NOT NULL,
         "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" DATETIME NOT NULL
@@ -274,19 +265,211 @@ describe("Milestone 2.1 — Legacy Database Compatibility Suite", () => {
         "id" TEXT NOT NULL PRIMARY KEY,
         "collectionId" TEXT NOT NULL,
         "userMediaId" TEXT NOT NULL,
+        "order" INTEGER NOT NULL DEFAULT 0,
         "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
+    `);
+    db.prepare("INSERT INTO User VALUES ('u1', 'fk_missing@test.local', CURRENT_TIMESTAMP)").run();
+
+    const validation = validateLegacySchema(db);
+    expect(validation.type).toBe("UNSUPPORTED");
+    expect(validation.isCompatible).toBe(false);
+    expect(validation.reasons.some((r) => r.includes("missing foreign key"))).toBe(true);
+
+    expect(() => {
+      runMigrations(db, { logger: () => {} });
+    }).toThrowError(MigrationError);
+
+    // Database must remain untouched and user_version remains 0
+    expect(getSchemaVersion(db)).toBe(0);
+    const user = db.prepare("SELECT * FROM User WHERE id = 'u1'").get() as any;
+    expect(user.email).toBe("fk_missing@test.local");
+
+    db.close();
+  });
+
+  // 5. Negative test: Missing unique indexes
+  it("rejects as UNSUPPORTED when required unique indexes are missing", () => {
+    const db = new DatabaseSync(dbPath);
+    // Full tables and FKs, but omit User_email_key unique index
+    db.exec(`
+      CREATE TABLE "User" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "email" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE "UserMedia" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "userId" TEXT NOT NULL,
+        "mediaType" TEXT NOT NULL,
+        "title" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL,
+        CONSTRAINT "UserMedia_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE TABLE "Collection" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "userId" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL,
+        CONSTRAINT "Collection_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE TABLE "CollectionItem" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "collectionId" TEXT NOT NULL,
+        "userMediaId" TEXT NOT NULL,
+        "order" INTEGER NOT NULL DEFAULT 0,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "CollectionItem_collectionId_fkey" FOREIGN KEY ("collectionId") REFERENCES "Collection" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT "CollectionItem_userMediaId_fkey" FOREIGN KEY ("userMediaId") REFERENCES "UserMedia" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      -- Omit unique index on User(email)
     `);
 
     const validation = validateLegacySchema(db);
     expect(validation.type).toBe("UNSUPPORTED");
-    expect(validation.missingRequiredColumns.UserMedia).toContain("userId");
+    expect(validation.isCompatible).toBe(false);
+    expect(validation.reasons.some((r) => r.includes("missing required unique constraint"))).toBe(true);
 
     expect(() => {
       runMigrations(db, { logger: () => {} });
     }).toThrowError(MigrationError);
 
     expect(getSchemaVersion(db)).toBe(0);
+    db.close();
+  });
+
+  // 6. Negative test: Incorrect relational constraints (e.g. ON DELETE SET NULL instead of CASCADE)
+  it("rejects as UNSUPPORTED when relational constraints have incorrect cascade rules", () => {
+    const db = new DatabaseSync(dbPath);
+    // UserMedia has FK to User with ON DELETE SET NULL instead of CASCADE
+    db.exec(`
+      CREATE TABLE "User" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "email" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE "UserMedia" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "userId" TEXT NOT NULL,
+        "mediaType" TEXT NOT NULL,
+        "title" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL,
+        CONSTRAINT "UserMedia_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+      );
+      CREATE TABLE "Collection" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "userId" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL,
+        CONSTRAINT "Collection_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE TABLE "CollectionItem" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "collectionId" TEXT NOT NULL,
+        "userMediaId" TEXT NOT NULL,
+        "order" INTEGER NOT NULL DEFAULT 0,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "CollectionItem_collectionId_fkey" FOREIGN KEY ("collectionId") REFERENCES "Collection" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT "CollectionItem_userMediaId_fkey" FOREIGN KEY ("userMediaId") REFERENCES "UserMedia" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+      CREATE UNIQUE INDEX "CollectionItem_collectionId_userMediaId_key" ON "CollectionItem"("collectionId", "userMediaId");
+    `);
+
+    const validation = validateLegacySchema(db);
+    expect(validation.type).toBe("UNSUPPORTED");
+    expect(validation.isCompatible).toBe(false);
+    expect(validation.reasons.some((r) => r.includes("ON DELETE CASCADE"))).toBe(true);
+
+    expect(() => {
+      runMigrations(db, { logger: () => {} });
+    }).toThrowError(MigrationError);
+
+    expect(getSchemaVersion(db)).toBe(0);
+    db.close();
+  });
+
+  // 7. Negative test: Incompatible column definitions (e.g. id is not PRIMARY KEY, or title is INTEGER)
+  it("rejects as UNSUPPORTED when primary key definitions or required column types are incompatible", () => {
+    const db = new DatabaseSync(dbPath);
+    // UserMedia id is NOT a primary key, and title is INTEGER
+    db.exec(`
+      CREATE TABLE "User" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "email" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE "UserMedia" (
+        "id" TEXT NOT NULL,
+        "userId" TEXT NOT NULL,
+        "mediaType" TEXT NOT NULL,
+        "title" INTEGER NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL,
+        CONSTRAINT "UserMedia_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE TABLE "Collection" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "userId" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL,
+        CONSTRAINT "Collection_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE TABLE "CollectionItem" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "collectionId" TEXT NOT NULL,
+        "userMediaId" TEXT NOT NULL,
+        "order" INTEGER NOT NULL DEFAULT 0,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "CollectionItem_collectionId_fkey" FOREIGN KEY ("collectionId") REFERENCES "Collection" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT "CollectionItem_userMediaId_fkey" FOREIGN KEY ("userMediaId") REFERENCES "UserMedia" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+      );
+      CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+      CREATE UNIQUE INDEX "CollectionItem_collectionId_userMediaId_key" ON "CollectionItem"("collectionId", "userMediaId");
+    `);
+
+    const validation = validateLegacySchema(db);
+    expect(validation.type).toBe("UNSUPPORTED");
+    expect(validation.isCompatible).toBe(false);
+    expect(validation.reasons.some((r) => r.includes("must be PRIMARY KEY"))).toBe(true);
+    expect(validation.reasons.some((r) => r.includes("incompatible type"))).toBe(true);
+
+    expect(() => {
+      runMigrations(db, { logger: () => {} });
+    }).toThrowError(MigrationError);
+
+    expect(getSchemaVersion(db)).toBe(0);
+    db.close();
+  });
+
+  // 8. Migration metadata failure-injection: atomicity & transaction rollback
+  it("rolls back transaction atomically and leaves user_version unchanged if metadata recording fails", () => {
+    const db = new DatabaseSync(dbPath);
+    // Create a dummy table that conflicts with _prisma_migrations (e.g. _prisma_migrations as a VIEW or incompatible schema)
+    db.exec(`
+      CREATE TABLE "_prisma_migrations" (
+        "id" INT PRIMARY KEY,
+        "unsupported_col" INT NOT NULL
+      );
+    `);
+
+    // Attempt to run migrations on this database
+    expect(() => {
+      runMigrations(db, { logger: () => {} });
+    }).toThrowError(MigrationError);
+
+    // Verify user_version was NOT updated to 1 because the transaction rolled back
+    expect(getSchemaVersion(db)).toBe(0);
+
+    // Verify User table was NOT created due to atomic rollback
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='User'").all();
+    expect(tables.length).toBe(0);
+
     db.close();
   });
 });

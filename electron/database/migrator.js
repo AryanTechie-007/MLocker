@@ -52,8 +52,8 @@ function getTableNames(db) {
 
 /**
  * Synchronizes applied migration record with _prisma_migrations table
- * using the genuine SHA-256 checksum of the migration SQL so Prisma CLI
- * and embedded runner remain in complete lockstep.
+ * using the genuine SHA-256 checksum of the migration SQL.
+ * Throws MigrationError if recording fails, preserving transaction atomicity.
  */
 function recordPrismaMigration(db, migrationName, migrationSql = "") {
   try {
@@ -84,7 +84,10 @@ function recordPrismaMigration(db, migrationName, migrationSql = "") {
       ).run(id, checksum, finishedAt, migrationName);
     }
   } catch (err) {
-    console.warn(`[MLocker Migrator] Notice: Could not record in _prisma_migrations:`, err.message);
+    throw new MigrationError(
+      `Failed recording migration metadata for ${migrationName} in _prisma_migrations: ${err.message}`,
+      { migrationName, originalError: err }
+    );
   }
 }
 
@@ -123,7 +126,7 @@ function runMigrations(db, options = {}) {
 
   const appliedMigrations = [];
 
-  // When initialVersion is 0, we must validate whether this is a fresh database
+  // When initialVersion is 0, validate whether this is a fresh database
   // or an existing database needing baseline classification.
   let legacyBaselineHandled = false;
   if (initialVersion === 0) {
