@@ -26,13 +26,24 @@ if (DatabaseSync) {
     db.exec("PRAGMA journal_mode = WAL");
     db.exec("PRAGMA foreign_keys = ON");
 
-    const migrationPath = path.resolve(
+    const migration1Path = path.resolve(
       __dirname,
       "../prisma/migrations/20261119000000_init/migration.sql"
     );
-    const sql = fs.readFileSync(migrationPath, "utf8");
-    db.exec(sql);
-    db.exec("PRAGMA user_version = 1");
+    const sql1 = fs.readFileSync(migration1Path, "utf8");
+    db.exec(sql1);
+
+    const migration2Path = path.resolve(
+      __dirname,
+      "../prisma/migrations/20261120000000_media_source/migration.sql"
+    );
+    if (fs.existsSync(migration2Path)) {
+      const sql2 = fs.readFileSync(migration2Path, "utf8");
+      db.exec(sql2);
+      db.exec("PRAGMA user_version = 2");
+    } else {
+      db.exec("PRAGMA user_version = 1");
+    }
     db.close();
   } catch (err: any) {
     console.error("[Test Setup] Failed initializing isolated test database:", err.message);

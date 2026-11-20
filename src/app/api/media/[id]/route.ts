@@ -29,6 +29,9 @@ export async function GET(
     const item = await prisma.userMedia.findFirst({
       where: { id, userId },
       include: {
+        sources: {
+          orderBy: { createdAt: "asc" },
+        },
         collectionItems: {
           where: {
             collection: {
