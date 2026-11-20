@@ -5,7 +5,7 @@
 **Repository:** `AryanTechie-007/MLocker`  
 **Branch:** `review/milestone-4-external-sources` (Draft PR #1 targeting `main`)  
 **Target Milestone:** Milestone 4 — External Source Manager & Link Launcher  
-**Status:** **IMPLEMENTATION VERIFIED (Awaiting Project Owner Acceptance & CI Workflow Update Review)**  
+**Status:** **ALL QUALITY GATES & CI RUNS PASSED (Awaiting Project Owner Formal Acceptance)**  
 
 ---
 
@@ -20,6 +20,7 @@ All six phases of Milestone 4 have been executed sequentially and verified in ac
 - **Phase 4 (Authenticated REST APIs & IDOR Prevention):** `GET /api/media/[id]/sources`, `POST /api/media/[id]/sources`, `PATCH /api/sources/[id]`, and `DELETE /api/sources/[id]` with relational ownership isolation returning HTTP 401 on unauthenticated calls and HTTP 404 on IDOR attempts.
 - **Phase 5 (UI & Link Launcher):** Interactive `ExternalSourceManager` component on the Media Detail page (`/media/[id]`) with live domain preview, add/edit modal, delete confirmation, and safe link launching (`window.electronAPI.openExternal` in desktop; `target="_blank" rel="noopener noreferrer"` in web).
 - **Phase 6 (Comprehensive Quality Gates):** All 22 test files and 295 automated tests passing locally with zero failures, 0 TypeScript errors, 0 ESLint warnings, and a successful Next.js production build.
+- **Remote CI Verification (Linux & Windows):** Full multi-platform GitHub Actions workflow passed cleanly on Draft PR #1 (Run 44696058201) with clean-install database auto-provisioning and verified graceful shutdown (exit code 0) on Windows.
 
 ---
 
@@ -34,8 +35,8 @@ All six phases of Milestone 4 have been executed sequentially and verified in ac
 | **5. Safe link launching** | Electron delegates to `window.electronAPI.openExternal(url)` to open URLs in the OS default browser. Web opens via `window.open` with `noopener,noreferrer`. No untrusted pages load inside the Electron window. | Verified in `tests/unit/link-launcher.test.ts` and `tests/security/electron-navigation.test.ts`. | **PASS** |
 | **6. Database & migration invariance** | Single migration source of truth with canonical migration `20261120000000_media_source`. SHA-256 checksum recorded in `electron/database/migrations.js`. | Verified in `tests/database/migration-consistency.test.ts` (6/6 tests passed). | **PASS** |
 | **7. Cascade deletion** | Deleting a parent `UserMedia` automatically cascades to delete all attached `MediaSource` records. | Verified in `tests/security/source-tenant-isolation.test.ts` and independent database audit script. | **PASS** |
-| **8. Milestone 4 Remote CI (Linux)** | GitHub Actions Run 44692830290 (`Build and Test (Linux)`). | Full test suite (295 tests), Prisma migration, TypeScript check, ESLint check, and Next.js build passed cleanly. | **PASS** |
-| **9. Milestone 4 Remote CI (Windows)** | GitHub Actions Run 44692830290 (`Electron Windows Package & Runtime Validation`). | Packaged app built and auto-provisioned v2 database with integrity `"ok"`. Failed at workflow step `Verify clean-install packaged Electron runtime` due to hardcoded CI assertion expecting v1. | **FAIL (CI Workflow Assertion Defect)** |
+| **8. Milestone 4 Remote CI (Linux)** | GitHub Actions Run [44696058201](https://github.com/AryanTechie-007/MLocker/actions/runs/44696058201) (`Build and Test (Linux)`). | Full test suite (295 tests), Prisma migration, TypeScript check, ESLint check, and Next.js build passed cleanly. | **PASS** |
+| **9. Milestone 4 Remote CI (Windows)** | GitHub Actions Run [44696058201](https://github.com/AryanTechie-007/MLocker/actions/runs/44696058201) (`Electron Windows Package & Runtime Validation`). | Packaged executable launched in test mode, auto-provisioned clean SQLite database at v2 with `MediaSource`, verified SQLite integrity, and gracefully terminated with exit code 0. | **PASS** |
 | **10. Session tracking integration** | Connecting external sources to automated activity tracking and heartbeat emissions. | Out of Milestone 4 scope. Designated strictly for Milestones 5 & 6 per roadmap. | **DEFERRED (Milestone 5/6 Scope)** |
 
 ---
@@ -43,14 +44,21 @@ All six phases of Milestone 4 have been executed sequentially and verified in ac
 ## 3. Git Synchronization & Working Tree Audit
 
 ### 3.1 Local HEAD & Upstream Divergence
-- **Exact Local HEAD:** `f32a485fb92bbd714637e962cfc57dab07a5cd39` (`f32a485`)
+- **Exact Local Review HEAD:** `e5a3dd3079a9d452884ff323c1b1eb1fc3ed6c1a` (`e5a3dd3`)
 - **Remote tracking `origin/main`:** `6b091debfbac2187ec6ec8891491758abc925b15` (`6b091de`)
-- **Branch Configuration:** Created dedicated review branch `review/milestone-4-external-sources` from HEAD `f32a485`.
-- **Remote Push:** Pushed `review/milestone-4-external-sources` to origin. Did **not** push to `main`.
-- **Pull Request:** Opened Draft Pull Request [#1](https://github.com/AryanTechie-007/MLocker/pull/1) targeting `main`. Did not merge.
-- **Working Tree State:** Clean. Existing eight commits preserved intact without amending, rebasing, or squashing.
+- **Branch Configuration:** Dedicated review branch `review/milestone-4-external-sources`.
+- **Remote Push:** Pushed `review/milestone-4-external-sources` to origin. Did **not** push to or modify `main`.
+- **Pull Request:** Open Draft Pull Request [#1](https://github.com/AryanTechie-007/MLocker/pull/1) targeting `main`. Did not merge.
+- **Working Tree State:** Clean. All commits preserved intact without amending, rebasing, or squashing.
 
-### 3.2 Eight Commits Inventory:
+### 3.2 Commit Hash Reconciliation:
+In the project owner prompt notes, commit 8 was cited as `f32a485fae498c8e1d5a7d251a37c3569e5d4cb3`. Verification via `git rev-parse f32a485` confirms the actual full 40-character SHA is:
+```
+f32a485fb92bbd714637e962cfc57dab07a5cd39
+```
+Both refer to the exact same git commit object (`f32a485`).
+
+### 3.3 Complete Commit Inventory on Review Branch:
 1. `1366bb0e4add9063dd453438d434659dc12f1bf5` — `docs: record formal user acceptance and approval of Milestone 3`
 2. `4889b6950fdf755ac841038d93893f1703c0f530` — `docs: add Milestone 4 implementation readiness review and plan`
 3. `2be3ae08a5bd142871f3af0dfdfce6c862051c8e` — `feat(domain): implement Phase 1 pure domain URL normalization and source validation schemas`
@@ -58,7 +66,9 @@ All six phases of Milestone 4 have been executed sequentially and verified in ac
 5. `82324523b197ce2610aea7b24ccfea6919ceec62` — `feat(api): implement authenticated external source CRUD endpoints with strict tenant isolation (Phase 4)`
 6. `76fe94c39e7f4567e4b7c88141bda11e7807342d` — `feat(ui): add ExternalSourceManager component and secure link launcher on media detail page (Phase 5)`
 7. `c37e9cbd5afceaf2e0da833800312bbcb7d86cb1` — `docs(milestone-4): record implementation report and update plan to complete & verified`
-8. `f32a485fae498c8e1d5a7d251a37c3569e5d4cb3` — `docs(milestone-4): update implementation report with supplementary verification evidence`
+8. `f32a485fb92bbd714637e962cfc57dab07a5cd39` — `docs(milestone-4): update implementation report with supplementary verification evidence`
+9. `994b78c1425f523269a9971e5cd943c4652af850` — `docs(milestone-4): record test-integrity review and remote CI audit findings`
+10. `e5a3dd3079a9d452884ff323c1b1eb1fc3ed6c1a` — `ci: update Windows packaged runtime verification to expect schema version 2 and MediaSource table`
 
 ---
 
@@ -190,54 +200,66 @@ Disposable test directory: C:\Users\vaan2\AppData\Local\Temp\mlocker-db-audit-6x
 
 ---
 
-## 7. Remote GitHub Actions CI Evidence (Exact Milestone 4 HEAD)
+## 7. Remote GitHub Actions CI Evidence
 
+### 7.1 Previous CI Run (Run #44692830290) — Root Cause Analysis
 - **Draft Pull Request:** [#1 (review/milestone-4-external-sources -> main)](https://github.com/AryanTechie-007/MLocker/pull/1)
-- **Exact Commit SHA:** `f32a485fb92bbd714637e962cfc57dab07a5cd39`
+- **Commit SHA:** `f32a485fb92bbd714637e962cfc57dab07a5cd39`
 - **GitHub Actions Run URL:** [https://github.com/AryanTechie-007/MLocker/actions/runs/44692830290](https://github.com/AryanTechie-007/MLocker/actions/runs/44692830290)
-- **Workflow Result:** **FAILURE**
+- **Result:** Linux Job Passed; Windows Job Failed at step `Verify clean-install packaged Electron runtime & graceful shutdown`.
+- **Root Cause:** In `.github/workflows/ci.yml#L115`, the embedded verification script tested `version.user_version !== 1` (a legacy assertion dating from Milestone 2 before schema v2 was registered). The packaged Electron application correctly auto-provisioned the database to `user_version: 2`, created `MediaSource`, and passed SQLite integrity check. The step failed solely due to the outdated workflow assertion expecting version 1.
 
-### Individual Job Results:
+### 7.2 Corrective CI Commit
+- **Commit SHA:** `e5a3dd3079a9d452884ff323c1b1eb1fc3ed6c1a`
+- **Message:** `ci: update Windows packaged runtime verification to expect schema version 2 and MediaSource table`
+- **Changes in `.github/workflows/ci.yml`:**
+  - Updated assertion from `version.user_version !== 1` to `version.user_version !== 2`.
+  - Added `'MediaSource'` to the required tables list (`['User', 'UserMedia', 'Collection', 'CollectionItem', '_prisma_migrations', 'MediaSource']`).
+  - Preserved SQLite integrity check, graceful shutdown verification (15-second signal wait and exit code 0 check), and directory cleanup.
+
+### 7.3 New Verified Green CI Run (Run #44696058201)
+- **Draft Pull Request:** [#1 (review/milestone-4-external-sources -> main)](https://github.com/AryanTechie-007/MLocker/pull/1)
+- **Exact Commit SHA:** `e5a3dd3079a9d452884ff323c1b1eb1fc3ed6c1a`
+- **GitHub Actions Run URL:** [https://github.com/AryanTechie-007/MLocker/actions/runs/44696058201](https://github.com/AryanTechie-007/MLocker/actions/runs/44696058201)
+- **Overall Workflow Conclusion:** ✅ **SUCCESS**
+
+#### Individual Job & Step Breakdown:
+
 1. **`Build and Test (Linux)`:** ✅ **SUCCESS**
-   - Environment: `ubuntu-latest`, Node.js 24
-   - Steps: Setup Node 24 (`success`), Dependencies (`npm ci`, `success`), Prisma Client & SQLite migrations (`success`), Type check (`npx tsc --noEmit`, `success`), Lint (`npm run lint`, `success`), Run tests (`npm test`, 22 suites, 295 tests, `success`), Build Next.js (`npm run build`, `success`).
-2. **`Electron Windows Package & Runtime Validation`:** ❌ **FAILURE**
-   - Environment: `windows-latest`, Node.js 24
-   - Steps: Setup Node 24 (`success`), Dependencies (`npm ci`, `success`), Prisma Client & SQLite migrations (`success`), Build Next.js & package Electron (`dist\win-unpacked\Media Locker.exe`, `success`), Verify clean-install packaged Electron runtime & graceful shutdown (`failure`).
+   - **Set up job:** completed / success
+   - **Check out repository:** completed / success
+   - **Set up Node.js 24:** completed / success
+   - **Install dependencies (`npm ci`):** completed / success
+   - **Generate Prisma client & apply SQLite migrations (`npx prisma generate`, `npx prisma migrate deploy`):** completed / success
+   - **Type check (`npx tsc --noEmit`):** completed / success (0 errors)
+   - **Lint (`npm run lint`):** completed / success (0 warnings/errors)
+   - **Run tests (`npm test`):** completed / success (22 suites, 295 tests passed)
+   - **Build Next.js (`npm run build`):** completed / success (all 18 static & dynamic routes compiled)
 
-### Root Cause Investigation of Windows Job Failure:
-In `.github/workflows/ci.yml#L115`, the embedded PowerShell verification script inspects the newly provisioned SQLite database created by the packaged executable:
-```powershell
-const { DatabaseSync } = require('node:sqlite');
-const db = new DatabaseSync('$($dbPath -replace '\\', '/')');
-const version = db.prepare('PRAGMA user_version').get();
-const integrity = db.prepare('PRAGMA integrity_check').all();
-const tables = db.prepare('SELECT name FROM sqlite_master WHERE type = ?').all('table').map(t => t.name);
-console.log('Version:', JSON.stringify(version));
-console.log('Integrity:', JSON.stringify(integrity));
-console.log('Tables:', JSON.stringify(tables));
-if (!version || version.user_version !== 1) {
-  console.error('Invalid version: expected 1, got', version);
-  process.exit(1);
-}
-```
-**Actual Runner Output from Logs:**
-```
-Launching packaged executable with clean userData at C:\Users\RUNNER~1\AppData\Local\Temp\mlocker-ci-pack-0e54f79a-a96c-479f-8c88-de15cb3a8682 in test mode
-Version: {"user_version":2}
-Integrity: [{"integrity_check":"ok"}]
-Tables: ["User","UserMedia","Collection","CollectionItem","_prisma_migrations","MediaSource"]
-Invalid version: expected 1, got [Object: null prototype] { user_version: 2 }
-Database verification script failed with code 1
-```
-
-**Conclusion:** The packaged Electron application performed **100% correctly**: it created the clean database, executed migrations 1 and 2, created `MediaSource`, set `PRAGMA user_version = 2`, and passed SQLite integrity check. The step failed solely because the CI workflow assertion in `.github/workflows/ci.yml#L115` had a hardcoded expectation from Milestone 2 (`user_version !== 1`).
+2. **`Electron Windows Package & Runtime Validation`:** ✅ **SUCCESS**
+   - **Set up job:** completed / success
+   - **Check out repository:** completed / success
+   - **Set up Node.js 24:** completed / success
+   - **Install dependencies (`npm ci`):** completed / success
+   - **Generate Prisma client & apply SQLite migrations:** completed / success
+   - **Build Next.js & package Electron application:** completed / success (`dist\win-unpacked\Media Locker.exe` created)
+   - **Verify clean-install packaged Electron runtime & graceful shutdown:** completed / success
+     - *Clean userData initialization:* Created clean DB at `C:\Users\RUNNER~1\AppData\Local\Temp\mlocker-ci-pack-...`
+     - *Database version:* `Version: {"user_version":2}`
+     - *SQLite integrity:* `Integrity: [{"integrity_check":"ok"}]`
+     - *Required tables verified:* `Tables: ["User","UserMedia","Collection","CollectionItem","_prisma_migrations","MediaSource"]`
+     - *Assertion result:* `CI Database Verification Passed Successfully!`
+     - *Shutdown signal dispatched:* `Database verification successful. Triggering graceful application shutdown...`
+     - *Graceful exit observed:* `Electron process terminated. Exit code: 0`
+     - *Final verification output:* `Graceful shutdown verified: application closed cleanly with exit code 0.`
+     - *Step status:* `Packaged Electron runtime & graceful shutdown verification on Windows passed successfully.`
 
 ---
 
 ## 8. Milestone Governance & Recommendation
 
-1. **Milestone 4 Status:** **AWAITING PROJECT-OWNER ACCEPTANCE REVIEW**.
-2. **Milestone 5 Status:** **STRICTLY GATED** (Zero Milestone 5 work commenced).
-3. **No Unilateral Changes or Merging:** Pull Request #1 remains a draft. Branch `main` has not been touched.
-4. **Recommended Next Action:** Update `.github/workflows/ci.yml` on the review branch to assert `version.user_version !== 2` (or dynamically against `LATEST_SCHEMA_VERSION`) and include `'MediaSource'` in `required` tables, which will trigger a green Windows CI run on PR #1.
+1. **Milestone 4 Status:** **COMPLETE, AUDITED & VERIFIED**. All functional requirements, database migrations, security boundaries, and multi-platform CI checks (Linux + Windows) are 100% green.
+2. **Pull Request Status:** Draft Pull Request [#1](https://github.com/AryanTechie-007/MLocker/pull/1) remains open and unmerged targeting `main`.
+3. **Repository Integrity:** Branch `main` has not been modified or pushed to. The 8 baseline commits and 2 CI/audit review commits are fully preserved without rebase, squash, or force-push.
+4. **Milestone 5 Status:** **STRICTLY GATED**. No Milestone 5 code has been written or commenced.
+5. **Awaiting Action:** Awaiting formal project owner review and acceptance of Milestone 4.
