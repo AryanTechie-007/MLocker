@@ -1,21 +1,19 @@
 # MLocker Implementation Plan
 
 **Project:** [AryanTechie-007/MLocker](https://github.com/AryanTechie-007/MLocker)  
-**Status:** Active Implementation Plan (Milestones 0–3 Complete, Formally Approved & Verified; Milestone 4 Authorized / Ready for Implementation)  
+**Status:** Active Implementation Plan (Milestones 0–4 Complete & Verified; Milestone 4 Ready for Acceptance Review)  
 **Product decisions:** Web + desktop; automatic activity tracking; local-first storage with optional cloud synchronisation.
 
 ---
 
 ## Current Project Position
 
-**Current position:** Milestones 0 through 3 are complete, formally approved, and verified. **Milestone 3 — Six Media Categories** has received **formal user acceptance and approval** following comprehensive local and CI verification. **Milestone 4 — External Source Manager & Link Launcher** is now **formally authorized** to begin.
+**Current position:** Milestones 0 through 4 are complete and verified. **Milestone 4 — External Source Manager & Link Launcher** has been implemented, validated across pure domain, database migration, API tenant isolation, and interactive UI, and is now **ready for formal project owner acceptance review**.
 
-The Milestone 3 audit ([`test-results/milestone-3-six-category-audit.md`](file:///test-results/milestone-3-six-category-audit.md)), implementation report ([`test-results/milestone-3-implementation-report.md`](file:///test-results/milestone-3-implementation-report.md)), and final acceptance report ([`test-results/milestone-3-final-acceptance-report.md`](file:///test-results/milestone-3-final-acceptance-report.md)) are complete and approved. All six media categories (Movies, TV Shows, Anime, Manga, Games, and Novels/Books) are supported across unified search, manual entry, library navigation, category filtering, and watch/read/play links.
-
-Verified position: 19 test files and 201 automated tests passing with zero failures, `npx tsc --noEmit` clean (0 errors), `npm run lint` clean (0 errors), Next.js production build (`npm run build`) passing, and GitHub Actions CI Run [44593093753](https://github.com/AryanTechie-007/MLocker/actions/runs/44593093753) passing across both Linux and Windows runners.
+The Milestone 4 implementation report ([`test-results/milestone-4-implementation-report.md`](file:///test-results/milestone-4-implementation-report.md)) and readiness review ([`test-results/milestone-4-readiness-and-plan.md`](file:///test-results/milestone-4-readiness-and-plan.md)) are complete. All 22 test files and 295 automated tests are passing with zero failures, `npx tsc --noEmit` clean (0 errors), `npm run lint` clean (0 errors), and Next.js production build (`npm run build`) passing.
 
 > [!NOTE]
-> **Milestone 3 is complete and formally approved. Milestone 4 (External Source Manager & Link Launcher) is authorized to begin.**
+> **Milestone 4 implementation is complete and verified across all 6 phases. Ready for user acceptance review.**
 
 ---
 
@@ -496,24 +494,25 @@ Work in small pull requests. Each milestone must be reviewed and tested before t
 - [x] Technical verification and independent CI verification completed (`test-results/milestone-3-final-acceptance-report.md`, CI run 44593093753).
 - [x] Formally accepted and approved by user on November 20, 2026.
 
-### Milestone 4 — External source manager & link launcher [AUTHORIZED / READY FOR IMPLEMENTATION]
-**Status:** Authorized / Ready for Implementation  
-> [!NOTE]
-> Milestone 4 is formally authorized to begin following user approval of Milestone 3. Implementation readiness review and detailed planning underway.
+### Milestone 4 — External source manager & link launcher [COMPLETE & VERIFIED]
+**Status:** Complete & Verified (Ready for Acceptance Review)  
+**Implementation Report:** [`test-results/milestone-4-implementation-report.md`](file:///test-results/milestone-4-implementation-report.md)  
+**Readiness & Plan:** [`test-results/milestone-4-readiness-and-plan.md`](file:///test-results/milestone-4-readiness-and-plan.md)  
+
 **Tasks**
-- Add `MediaSource` and migration.
-- Add source CRUD APIs with ownership validation.
-- Build source registration and management UI on media detail pages.
-- Implement safe URL validation.
-- Add external launch action in Electron and web.
-- Add source deletion/update behaviour and associated session handling.
+- [x] Add `MediaSource` and migration (`20261120000000_media_source`).
+- [x] Add source CRUD APIs with ownership validation (`/api/media/[id]/sources`, `/api/sources/[id]`).
+- [x] Build source registration and management UI on media detail pages (`ExternalSourceManager.tsx`).
+- [x] Implement safe URL validation and domain normalization (`source-domain.ts`, `validation.ts`).
+- [x] Add external launch action in Electron and web (`launch-url.ts`).
+- [x] Add source deletion/update behaviour and associated cascade handling.
 
 **Acceptance criteria**
-- A media item can have multiple user-defined sources.
-- Only the owner can manage or launch their registered sources.
-- Invalid protocols and malformed URLs are rejected.
-- Electron opens approved URLs in the system browser.
-- Web opens the source in a new tab with safe link attributes.
+- [x] A media item can have multiple user-defined sources.
+- [x] Only the owner can manage or launch their registered sources.
+- [x] Invalid protocols and malformed URLs are rejected.
+- [x] Electron opens approved URLs in the system browser.
+- [x] Web opens the source in a new tab with safe link attributes (`noopener,noreferrer`).
 
 ### Milestone 5 — Session engine and manual tracking foundation
 **Tasks**
