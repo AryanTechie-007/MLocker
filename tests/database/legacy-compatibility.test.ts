@@ -20,7 +20,7 @@ import {
   areDefaultsEquivalent,
   normalizeDefaultValue,
 } from "../../electron/database/schema-validator";
-import { INIT_MIGRATION_SQL } from "../../electron/database/migrations";
+import { INIT_MIGRATION_SQL, LATEST_SCHEMA_VERSION } from "../../electron/database/migrations";
 
 describe("Milestone 2.1 — Legacy Database Structural Validation Suite", () => {
   let tempDir: string;
@@ -139,8 +139,8 @@ describe("Milestone 2.1 — Legacy Database Structural Validation Suite", () => 
     const result = runMigrations(dbToMigrate, { logger: () => {} });
 
     expect(result.initialVersion).toBe(0);
-    expect(result.finalVersion).toBe(1);
-    expect(getSchemaVersion(dbToMigrate)).toBe(1);
+    expect(result.finalVersion).toBe(LATEST_SCHEMA_VERSION);
+    expect(getSchemaVersion(dbToMigrate)).toBe(LATEST_SCHEMA_VERSION);
 
     // Verify records are 100% intact
     const user = dbToMigrate.prepare("SELECT * FROM User WHERE id = 'u_leg_1'").get() as any;
@@ -214,8 +214,8 @@ describe("Milestone 2.1 — Legacy Database Structural Validation Suite", () => 
 
     // Run migrations
     const result = runMigrations(db, { logger: () => {} });
-    expect(result.finalVersion).toBe(1);
-    expect(getSchemaVersion(db)).toBe(1);
+    expect(result.finalVersion).toBe(LATEST_SCHEMA_VERSION);
+    expect(getSchemaVersion(db)).toBe(LATEST_SCHEMA_VERSION);
 
     // Verify existing data is preserved
     const user = db.prepare("SELECT * FROM User WHERE id = 'u_early'").get() as any;
@@ -847,8 +847,8 @@ describe("Milestone 2.1 — Legacy Database Structural Validation Suite", () => 
     // Execute migration runner
     const result = runMigrations(db, { logger: () => {} });
     expect(result.initialVersion).toBe(0);
-    expect(result.finalVersion).toBe(1);
-    expect(getSchemaVersion(db)).toBe(1);
+    expect(result.finalVersion).toBe(LATEST_SCHEMA_VERSION);
+    expect(getSchemaVersion(db)).toBe(LATEST_SCHEMA_VERSION);
 
     // Verify existing records are 100% intact
     const user = db.prepare("SELECT * FROM User WHERE id = 'u_upg'").get() as any;

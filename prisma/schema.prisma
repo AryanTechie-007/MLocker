@@ -54,10 +54,26 @@ model UserMedia {
   updatedAt       DateTime        @updatedAt
 
   collectionItems CollectionItem[]
+  sources         MediaSource[]
 
   @@unique([userId, mediaType, externalId])
   @@index([userId, mediaType])
   @@index([userId, status])
+}
+
+model MediaSource {
+  id               String     @id @default(cuid())
+  userMediaId      String
+  userMedia        UserMedia  @relation(fields: [userMediaId], references: [id], onDelete: Cascade)
+  name             String
+  url              String
+  normalizedDomain String
+  sourceType       String     @default("web") // "stream", "reader", "game", "store", "web"
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@index([userMediaId])
+  @@index([normalizedDomain])
 }
 
 model Collection {

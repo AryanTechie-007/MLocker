@@ -119,4 +119,53 @@ describe("Milestone 2.1 — Single-Source Migration Consistency Suite", () => {
 
     db.close();
   });
+
+  // 6. Milestone 4: MediaSource migration v2 consistency
+  it("loads and verifies v2 MediaSource migration SQL and checksum matching Prisma CLI format", () => {
+    const v2Path = path.resolve(
+      __dirname,
+      "../../prisma/migrations/20261120000000_media_source/migration.sql"
+    );
+    expect(fs.existsSync(v2Path)).toBe(true);
+
+    const rawV2Sql = fs.readFileSync(v2Path, "utf8").replace(/\r\n/g, "\n");
+    const resolvedV2Sql = resolveMigrationSql("20261120000000_media_source");
+
+    expect(resolvedV2Sql).toBe(rawV2Sql);
+
+    const expectedChecksum = crypto.createHash("sha256").update(rawV2Sql).digest("hex");
+    expect(MIGRATIONS[1].checksum).toBe(expectedChecksum);
+    expect(MIGRATIONS[1].version).toBe(2);
+    expect(MIGRATIONS[1].name).toBe("20261120000000_media_source");
+
+    // Verify applying v1 + v2 creates MediaSource table with expected columns and foreign keys
+    const db = new DatabaseSync(":memory:");
+    db.exec(INIT_MIGRATION_SQL);
+    db.exec(resolvedV2Sql);
+
+    const schema = inspectDatabaseSchema(db);
+    expect(schema.tableNames).toContain("MediaSource");
+
+    const mediaSourceTable = (schema.tables as Record<string, any>)["MediaSource"];
+    expect(mediaSourceTable).toBeDefined();
+
+    const colNames = mediaSourceTable.columns.map((c: any) => c.name);
+    expect(colNames).toContain("id");
+    expect(colNames).toContain("userMediaId");
+    expect(colNames).toContain("name");
+    expect(colNames).toContain("url");
+    expect(colNames).toContain("normalizedDomain");
+    expect(colNames).toContain("sourceType");
+    expect(colNames).toContain("createdAt");
+    expect(colNames).toContain("updatedAt");
+
+    // Verify foreign key to UserMedia(id) ON DELETE CASCADE
+    const fk = mediaSourceTable.foreignKeys.find((f: any) => f.table === "UserMedia");
+    expect(fk).toBeDefined();
+    expect(fk.from).toBe("userMediaId");
+    expect(fk.to).toBe("id");
+    expect(fk.on_delete).toBe("CASCADE");
+
+    db.close();
+  });
 });

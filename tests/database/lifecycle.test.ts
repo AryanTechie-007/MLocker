@@ -78,9 +78,10 @@ describe("Milestone 2: Database Lifecycle & SQLite Migration Suite", () => {
       expect(tables).toContain("UserMedia");
       expect(tables).toContain("Collection");
       expect(tables).toContain("CollectionItem");
+      expect(tables).toContain("MediaSource");
 
       // Verify pragmas
-      expect(getSchemaVersion(db)).toBe(1);
+      expect(getSchemaVersion(db)).toBe(LATEST_SCHEMA_VERSION);
       const journalMode = db.prepare("PRAGMA journal_mode").get() as { journal_mode: string };
       expect(journalMode.journal_mode).toBe("wal");
       db.close();
@@ -108,7 +109,7 @@ describe("Milestone 2: Database Lifecycle & SQLite Migration Suite", () => {
       const secondResult = initializeDatabase(mockApp, { explicitPath: dbPath, logger: () => {} });
 
       expect(secondResult.isFreshInstall).toBe(false);
-      expect(secondResult.version).toBe(1);
+      expect(secondResult.version).toBe(LATEST_SCHEMA_VERSION);
 
       // Verify data preserved
       const dbCheck = new DatabaseSync(dbPath);
@@ -128,23 +129,26 @@ describe("Milestone 2: Database Lifecycle & SQLite Migration Suite", () => {
       const customMigrations = [
         ...MIGRATIONS,
         {
-          version: 2,
-          name: "20261119000001_add_notes",
+          version: 3,
+          name: "20261120000001_add_notes",
           sql: 'ALTER TABLE "UserMedia" ADD COLUMN "internalReviewNotes" TEXT;',
         },
       ];
 
       const result = runMigrations(db, {
-        targetVersion: 2,
+        targetVersion: 3,
         migrations: customMigrations,
         logger: () => {},
       });
 
       expect(result.initialVersion).toBe(1);
-      expect(result.finalVersion).toBe(2);
-      expect(result.appliedCount).toBe(1);
-      expect(result.appliedMigrations).toEqual(["20261119000001_add_notes"]);
-      expect(getSchemaVersion(db)).toBe(2);
+      expect(result.finalVersion).toBe(3);
+      expect(result.appliedCount).toBe(2);
+      expect(result.appliedMigrations).toEqual([
+        "20261120000000_media_source",
+        "20261120000001_add_notes",
+      ]);
+      expect(getSchemaVersion(db)).toBe(3);
 
       // Verify newly added column exists by inserting into it
       db.prepare("INSERT INTO User (id, email) VALUES ('u_mig', 'mig@test.local')").run();
@@ -177,13 +181,13 @@ describe("Milestone 2: Database Lifecycle & SQLite Migration Suite", () => {
       const customMigrations = [
         ...MIGRATIONS,
         {
-          version: 2,
-          name: "20261119000002_add_flag",
+          version: 3,
+          name: "20261120000002_add_flag",
           sql: 'ALTER TABLE "UserMedia" ADD COLUMN "isArchived" BOOLEAN NOT NULL DEFAULT 0;',
         },
       ];
 
-      runMigrations(db, { targetVersion: 2, migrations: customMigrations, logger: () => {} });
+      runMigrations(db, { targetVersion: 3, migrations: customMigrations, logger: () => {} });
 
       // Verify original records are unchanged
       const user = db.prepare("SELECT * FROM User WHERE id = 'u_preserve'").get() as { name: string };
@@ -212,22 +216,22 @@ describe("Milestone 2: Database Lifecycle & SQLite Migration Suite", () => {
       const invalidMigrations = [
         ...MIGRATIONS,
         {
-          version: 2,
-          name: "20261119000003_bad_syntax",
+          version: 3,
+          name: "20261120000003_bad_syntax",
           sql: "ALTER TABLE UserMedia ADD COLUMN validCol TEXT; INVALID SYNTAX ERROR STATEMENT;",
         },
       ];
 
       expect(() => {
         runMigrations(db, {
-          targetVersion: 2,
+          targetVersion: 3,
           migrations: invalidMigrations,
           logger: () => {},
         });
       }).toThrowError(MigrationError);
 
-      // PRAGMA user_version must remain at 1
-      expect(getSchemaVersion(db)).toBe(1);
+      // PRAGMA user_version must remain at 2 (since v2 migration succeeded, but v3 failed and rolled back)
+      expect(getSchemaVersion(db)).toBe(2);
 
       // Column 'validCol' must NOT exist because of atomic rollback
       const tableInfo = db.prepare("PRAGMA table_info('UserMedia')").all() as Array<{ name: string }>;

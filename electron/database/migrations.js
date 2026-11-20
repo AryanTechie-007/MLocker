@@ -38,6 +38,11 @@ function resolveMigrationSql(migrationName) {
     return CANONICAL_INIT_SQL;
   }
 
+  // Canonical fallback identical byte-for-byte to prisma/migrations/20261120000000_media_source/migration.sql
+  if (migrationName === "20261120000000_media_source") {
+    return CANONICAL_MEDIA_SOURCE_SQL;
+  }
+
   throw new Error(`Migration SQL file not found for migration: ${migrationName}`);
 }
 
@@ -127,6 +132,29 @@ CREATE UNIQUE INDEX "CollectionItem_collectionId_userMediaId_key" ON "Collection
 `;
 
 /**
+ * Canonical DDL matching prisma/migrations/20261120000000_media_source/migration.sql byte-for-byte.
+ */
+const CANONICAL_MEDIA_SOURCE_SQL = `-- CreateTable
+CREATE TABLE "MediaSource" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userMediaId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "url" TEXT NOT NULL,
+    "normalizedDomain" TEXT NOT NULL,
+    "sourceType" TEXT NOT NULL DEFAULT 'web',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "MediaSource_userMediaId_fkey" FOREIGN KEY ("userMediaId") REFERENCES "UserMedia" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateIndex
+CREATE INDEX "MediaSource_userMediaId_idx" ON "MediaSource"("userMediaId");
+
+-- CreateIndex
+CREATE INDEX "MediaSource_normalizedDomain_idx" ON "MediaSource"("normalizedDomain");
+`;
+
+/**
  * Calculates deterministic SHA-256 checksum matching Prisma CLI format.
  */
 function getMigrationChecksum(sqlContent) {
@@ -136,6 +164,9 @@ function getMigrationChecksum(sqlContent) {
 
 const INIT_MIGRATION_SQL = resolveMigrationSql("20261119000000_init");
 const INIT_MIGRATION_CHECKSUM = getMigrationChecksum(INIT_MIGRATION_SQL);
+
+const MEDIA_SOURCE_MIGRATION_SQL = resolveMigrationSql("20261120000000_media_source");
+const MEDIA_SOURCE_MIGRATION_CHECKSUM = getMigrationChecksum(MEDIA_SOURCE_MIGRATION_SQL);
 
 /**
  * Ordered registry of migrations.
@@ -147,6 +178,12 @@ const MIGRATIONS = [
     sql: INIT_MIGRATION_SQL,
     checksum: INIT_MIGRATION_CHECKSUM,
   },
+  {
+    version: 2,
+    name: "20261120000000_media_source",
+    sql: MEDIA_SOURCE_MIGRATION_SQL,
+    checksum: MEDIA_SOURCE_MIGRATION_CHECKSUM,
+  },
 ];
 
 const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;
@@ -156,6 +193,8 @@ module.exports = {
   LATEST_SCHEMA_VERSION,
   INIT_MIGRATION_SQL,
   INIT_MIGRATION_CHECKSUM,
+  MEDIA_SOURCE_MIGRATION_SQL,
+  MEDIA_SOURCE_MIGRATION_CHECKSUM,
   resolveMigrationSql,
   getMigrationChecksum,
 };
