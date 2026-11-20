@@ -112,15 +112,15 @@ jobs:
           console.log('Version:', JSON.stringify(version));
           console.log('Integrity:', JSON.stringify(integrity));
           console.log('Tables:', JSON.stringify(tables));
-          if (!version || version.user_version !== 1) {
-            console.error('Invalid version: expected 1, got', version);
+          if (!version || version.user_version !== 2) {
+            console.error('Invalid version: expected 2, got', version);
             process.exit(1);
           }
           if (!integrity || integrity.length === 0 || integrity[0].integrity_check !== 'ok') {
             console.error('Integrity check failed:', integrity);
             process.exit(1);
           }
-          const required = ['User', 'UserMedia', 'Collection', 'CollectionItem', '_prisma_migrations'];
+          const required = ['User', 'UserMedia', 'Collection', 'CollectionItem', '_prisma_migrations', 'MediaSource'];
           for (const req of required) {
             if (!tables.includes(req)) {
               console.error('Missing table:', req);
