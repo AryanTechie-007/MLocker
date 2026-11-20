@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  SOURCE_TYPES,
+  type SourceType,
+  isValidSourceUrl,
+} from "./source-domain";
 
 /**
  * Pure Domain Validation Schemas
@@ -144,3 +149,44 @@ export const ExternalUrlSchema = z
     (url) => url.startsWith("http://") || url.startsWith("https://"),
     { message: "Only http:// and https:// URLs are allowed" }
   );
+
+// ---------------------------------------------------------------------------
+// External Media Sources (Milestone 4)
+// ---------------------------------------------------------------------------
+
+export { SOURCE_TYPES, type SourceType };
+
+export const SourceTypeEnum = z.enum(SOURCE_TYPES);
+
+export const SourceUrlSchema = z
+  .string()
+  .trim()
+  .min(1, "URL is required")
+  .max(2000, "URL exceeds maximum length")
+  .refine(isValidSourceUrl, {
+    message: "Only valid http:// and https:// URLs are permitted",
+  });
+
+export const CreateMediaSourceSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "Source name is required")
+    .max(100, "Source name cannot exceed 100 characters"),
+  url: SourceUrlSchema,
+  sourceType: SourceTypeEnum.optional().default("web"),
+});
+
+export const UpdateMediaSourceSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "Source name cannot be empty")
+    .max(100, "Source name cannot exceed 100 characters")
+    .optional(),
+  url: SourceUrlSchema.optional(),
+  sourceType: SourceTypeEnum.optional(),
+});
+
+export type CreateMediaSourceInput = z.infer<typeof CreateMediaSourceSchema>;
+export type UpdateMediaSourceInput = z.infer<typeof UpdateMediaSourceSchema>;
