@@ -1,19 +1,26 @@
 # MLocker Implementation Plan
 
 **Project:** [AryanTechie-007/MLocker](https://github.com/AryanTechie-007/MLocker)  
-**Status:** Active Implementation Plan (Milestones 0–4 Complete & Verified; Milestone 4 Ready for Acceptance Review)  
+**Status:** Active Implementation Plan (Milestones 0–4 Complete, Formally Approved & Verified; Milestone 5 Authorized / Planning Phase)  
 **Product decisions:** Web + desktop; automatic activity tracking; local-first storage with optional cloud synchronisation.
 
 ---
 
 ## Current Project Position
 
-**Current position:** Milestones 0 through 4 are complete and verified. **Milestone 4 — External Source Manager & Link Launcher** has been implemented, validated across pure domain, database migration, API tenant isolation, and interactive UI, and is now **ready for formal project owner acceptance review**.
+**Current position:** Milestones 0 through 4 are complete, verified, and formally accepted by the project owner. **Milestone 4 — External Source Manager & Link Launcher** has received **formal project owner acceptance and approval**. **Milestone 5 — Session Engine** is now **formally authorized** to begin planning and architectural design.
 
-The Milestone 4 implementation report ([`test-results/milestone-4-implementation-report.md`](file:///test-results/milestone-4-implementation-report.md)) and readiness review ([`test-results/milestone-4-readiness-and-plan.md`](file:///test-results/milestone-4-readiness-and-plan.md)) are complete. All 22 test files and 295 automated tests are passing with zero failures, `npx tsc --noEmit` clean (0 errors), `npm run lint` clean (0 errors), and Next.js production build (`npm run build`) passing.
+The Milestone 4 implementation report ([`test-results/milestone-4-implementation-report.md`](file:///test-results/milestone-4-implementation-report.md)), readiness review ([`test-results/milestone-4-readiness-and-plan.md`](file:///test-results/milestone-4-readiness-and-plan.md)), and final acceptance report ([`test-results/milestone-4-final-acceptance-report.md`](file:///test-results/milestone-4-final-acceptance-report.md)) are complete and approved.
+
+Verified evidence preserved:
+- **Review Branch:** `review/milestone-4-external-sources`
+- **Latest Reviewed Commit:** `3f89d1ae63e4a9b3a558cdd5e0c3b6a7c2c09109`
+- **Draft Pull Request:** [#1 (review/milestone-4-external-sources -> main)](https://github.com/AryanTechie-007/MLocker/pull/1)
+- **Remote CI Run:** [44696686169](https://github.com/AryanTechie-007/MLocker/actions/runs/44696686169) (Linux: Success, Windows: Success)
+- **Automated Tests:** 22 test files, 295 automated tests passing with zero failures, `npx tsc --noEmit` clean (0 errors), `npm run lint` clean (0 errors), and Next.js production build (`npm run build`) passing.
 
 > [!NOTE]
-> **Milestone 4 implementation is complete and verified across all 6 phases. Ready for user acceptance review.**
+> **Milestone 4 is complete and formally approved by the project owner. Milestone 5 (Session Engine) is authorized for planning and architecture design.**
 
 ---
 
@@ -494,10 +501,12 @@ Work in small pull requests. Each milestone must be reviewed and tested before t
 - [x] Technical verification and independent CI verification completed (`test-results/milestone-3-final-acceptance-report.md`, CI run 44593093753).
 - [x] Formally accepted and approved by user on November 20, 2026.
 
-### Milestone 4 — External source manager & link launcher [COMPLETE & VERIFIED]
-**Status:** Complete & Verified (Ready for Acceptance Review)  
+### Milestone 4 — External source manager & link launcher [COMPLETE & APPROVED]
+**Status:** Complete & Formally Approved by Project Owner  
 **Implementation Report:** [`test-results/milestone-4-implementation-report.md`](file:///test-results/milestone-4-implementation-report.md)  
 **Readiness & Plan:** [`test-results/milestone-4-readiness-and-plan.md`](file:///test-results/milestone-4-readiness-and-plan.md)  
+**Final Acceptance Report:** [`test-results/milestone-4-final-acceptance-report.md`](file:///test-results/milestone-4-final-acceptance-report.md)  
+**CI verification:** GitHub Actions Run [44696686169](https://github.com/AryanTechie-007/MLocker/actions/runs/44696686169) (commit `3f89d1ae63e4a9b3a558cdd5e0c3b6a7c2c09109`, Ubuntu Linux + Windows packaged Electron clean-install and verified graceful shutdown with exit code 0).
 
 **Tasks**
 - [x] Add `MediaSource` and migration (`20261120000000_media_source`).
@@ -513,8 +522,12 @@ Work in small pull requests. Each milestone must be reviewed and tested before t
 - [x] Invalid protocols and malformed URLs are rejected.
 - [x] Electron opens approved URLs in the system browser.
 - [x] Web opens the source in a new tab with safe link attributes (`noopener,noreferrer`).
+- [x] Formally accepted and approved by project owner on November 20, 2026.
 
-### Milestone 5 — Session engine and manual tracking foundation
+### Milestone 5 — Session engine and manual tracking foundation [AUTHORIZED / PLANNING]
+**Status:** Authorized / Planning  
+> [!NOTE]
+> Milestone 5 is formally authorized to begin following project owner approval of Milestone 4. Planning, architecture, and phase breakdown in progress.
 **Tasks**
 - Add `ConsumptionSession` and `ActivityEvent`.
 - Implement a platform-independent session service.
