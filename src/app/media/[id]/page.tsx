@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import ExternalSourceManager from "@/components/ExternalSourceManager";
 import { useToast } from "@/components/Toast";
 import { Skeleton } from "@/components/Skeleton";
 import { getQuickSearchProviders } from "@/components/WatchProviderBadge";
@@ -493,6 +494,13 @@ export default function MediaDetailPage({
           </div>
         </div>
       </div>
+
+      {/* External Sources & Destinations */}
+      <ExternalSourceManager
+        mediaId={item.id}
+        mediaTitle={item.title}
+        initialSources={item.sources || []}
+      />
 
       {/* Interactive Tracking Control Center */}
       <div

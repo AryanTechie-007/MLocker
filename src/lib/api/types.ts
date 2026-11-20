@@ -40,6 +40,17 @@ export interface MediaSearchResult {
   watchProviders?: WatchProvider[];
 }
 
+export interface MediaSourceItem {
+  id: string;
+  userMediaId: string;
+  name: string;
+  url: string;
+  normalizedDomain: string;
+  sourceType: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface UserMediaItem {
   id: string;
   userId: string;
@@ -65,6 +76,7 @@ export interface UserMediaItem {
   tags?: string | null;
   createdAt: string;
   updatedAt: string;
+  sources?: MediaSourceItem[];
   collectionItems?: {
     id: string;
     collectionId: string;
