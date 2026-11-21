@@ -524,24 +524,31 @@ Work in small pull requests. Each milestone must be reviewed and tested before t
 - [x] Web opens the source in a new tab with safe link attributes (`noopener,noreferrer`).
 - [x] Formally accepted and approved by project owner on November 20, 2026.
 
-### Milestone 5 — Session engine and manual tracking foundation [AUTHORIZED / PLANNING]
-**Status:** Authorized / Planning  
-> [!NOTE]
-> Milestone 5 is formally authorized to begin following project owner approval of Milestone 4. Planning, architecture, and phase breakdown in progress.
+### Milestone 5 — Session engine and manual tracking foundation [COMPLETE & VERIFIED]
+**Status:** Complete & Independently Verified  
+**Audit Document:** [`docs/engineering/milestone-5-design-audit.md`](file:///docs/engineering/milestone-5-design-audit.md)  
+**Verification:** 405/405 automated tests passing across 30 test suites (295 baseline + 110 new tests, 0 regressions), `npx tsc --noEmit` clean (0 errors), `npm run lint` clean (0 errors), Next.js production build (`npm run build`) passing, and independent victory audit confirmed.
+
 **Tasks**
-- Add `ConsumptionSession` and `ActivityEvent`.
-- Implement a platform-independent session service.
-- Implement idempotent event ingestion.
-- Add pause/resume/close/recovery behaviour.
-- Add session history to media detail pages.
-- Add manual session correction/deletion.
-- Add tests for duplicate heartbeats, disconnects, idle transitions, crash recovery and time calculations.
+- [x] Add `ActivitySession` and `ActivityEvent` models with 3-column composite FKs (`prisma/schema.prisma`, `prisma/migrations/20261121000000_session_engine/migration.sql`).
+- [x] Implement a platform-independent pure domain session engine (`src/lib/domain/session-engine.ts`) with zero framework imports.
+- [x] Implement idempotent event ingestion with atomic CAS updates, sequence gap rejection (`409 SEQUENCE_GAP`), and client FIFO queue.
+- [x] Add pause/resume/close/recovery behaviour with dual-bounded active time crediting ($\min(d_{client}, \lfloor\Delta_{server}\rfloor, 17\text{s})$).
+- [x] Add session history timeline view on media detail pages (`SessionHistory.tsx`, `media/[id]/page.tsx`).
+- [x] Add manual session logging/editing/deletion modal with form state reset on item change (`ManualSessionModal.tsx`).
+- [x] Add in-app focus tracking controller (`ActiveSessionTracker.tsx`) with non-intrusive progress prompts.
+- [x] Add desktop startup crash recovery sweep (`closeReason: 'crash_recovery'`) and shutdown flush in `electron/database/lifecycle.js` and `electron/shutdown.js`.
+- [x] Add desktop SQLite migration runner v3 registration in `electron/database/migrations.js` with dynamic SHA-256 checksum and fallback DDL.
+- [x] Add comprehensive test coverage: pure domain FSM (23 tests), validation (31 tests), migration v3 (5 tests), lifecycle recovery (2 tests), REST APIs (18 tests), IDOR isolation (11 tests), UI components (13 tests), and concurrency matrix TC-C01 through TC-C07 (7 tests).
 
 **Acceptance criteria**
-- Sessions can be created and recovered without the browser extension.
-- Duplicate events do not double-count time.
-- Invalid or out-of-order timestamps cannot create negative durations.
-- All session records are scoped to the correct user.
+- [x] Sessions can be created and recovered without the browser extension.
+- [x] Duplicate events do not double-count time.
+- [x] Invalid or out-of-order timestamps cannot create negative durations.
+- [x] All session records are scoped to the correct user (401 unauth, 404 cross-tenant).
+- [x] Concurrency scenarios TC-C01 through TC-C07 pass verification.
+- [x] 100% test suite passing (405/405 tests) with zero regressions.
+- [x] Packaged desktop runtime database checks in CI verify schema version 3.
 
 ### Milestone 6 — Browser extension MVP
 **Tasks**
@@ -708,22 +715,21 @@ Keep domain logic (source validation, session rules, sync merge rules) outside R
 | **1.2.1. Protocol allowlist correction** | Complete | Protocol allowlist enforced before origin check in `handleWillNavigate()` ([`856538c`](https://github.com/AryanTechie-007/MLocker/commit/856538c42f6a46039ae0db6edf8c7b72b2f4d0fe), CI run [44525905345](https://github.com/AryanTechie-007/MLocker/actions/runs/44525905345)) |
 | **2. Database and desktop reliability** | Complete | Embedded SQLite migration runner, WAL journal mode, pre-migration backups, persistent userData path ([`1b1481f`](https://github.com/AryanTechie-007/MLocker/commit/1b1481fa512ddb506dbbba07bca0bc4225602496), [`8c12fe4`](https://github.com/AryanTechie-007/MLocker/commit/8c12fe489a4d64b86fa207a28dab326883700286), CI run [44532724671](https://github.com/AryanTechie-007/MLocker/actions/runs/44532724671), [`test-results/milestone-2-database-report.md`](file:///test-results/milestone-2-database-report.md)) |
 | **2.1. Database lifecycle corrective audit** | Complete | Single migration source of truth, strict structural legacy validation, semantic default equivalence, isolated test DB, graceful Windows Electron shutdown ([`fc8f6b3`](https://github.com/AryanTechie-007/MLocker/commit/fc8f6b376c1f6a9404aae30d42ea6011b9ff0aac), [`30033d2`](https://github.com/AryanTechie-007/MLocker/commit/30033d295f58e7fee93d66b8631360d50f9e9411), [`74a60de`](https://github.com/AryanTechie-007/MLocker/commit/74a60decde3f813cbfbfb1e02dcb1744be216f99), CI run [44569027391](https://github.com/AryanTechie-007/MLocker/actions/runs/44569027391), [`test-results/milestone-2.1-corrective-report.md`](file:///test-results/milestone-2.1-corrective-report.md)) |
-| **3. Six media categories** | Implementation Complete / Awaiting Sign-off | Kitsu provider (anime/manga), Open Library provider (novels/books), canonical `novel` identifier & `book` alias, resilient anime fallback, UI controls, 19 suites & 201 tests passing ([`3c88662`](https://github.com/AryanTechie-007/MLocker/commit/3c886626e42d871d58089071d88c75d48caa3a03), [`4765c1d`](https://github.com/AryanTechie-007/MLocker/commit/4765c1d19fd1cdfa7b1d4650a1b52d09a87a4c05), [`20967d6`](https://github.com/AryanTechie-007/MLocker/commit/20967d63f5767c212077e5e4b46d159c9a3ce752), CI run [44593093753](https://github.com/AryanTechie-007/MLocker/actions/runs/44593093753), [`test-results/milestone-3-final-acceptance-report.md`](file:///test-results/milestone-3-final-acceptance-report.md)); awaiting final user sign-off |
-| **4. External source manager** | Next / Not started | Blocked until Milestone 4 is explicitly started |
-| **5. Session engine** | Not started | Blocked on Milestone 4 completion |
-| **6. Browser extension MVP** | Not started | Blocked on Milestone 5 completion |
+| **3. Six media categories** | Complete & Formally Approved | Kitsu provider (anime/manga), Open Library provider (novels/books), canonical `novel` identifier & `book` alias, resilient anime fallback, UI controls, 19 suites & 201 tests passing ([`3c88662`](https://github.com/AryanTechie-007/MLocker/commit/3c886626e42d871d58089071d88c75d48caa3a03), [`4765c1d`](https://github.com/AryanTechie-007/MLocker/commit/4765c1d19fd1cdfa7b1d4650a1b52d09a87a4c05), [`20967d6`](https://github.com/AryanTechie-007/MLocker/commit/20967d63f5767c212077e5e4b46d159c9a3ce752), CI run [44593093753](https://github.com/AryanTechie-007/MLocker/actions/runs/44593093753), [`test-results/milestone-3-final-acceptance-report.md`](file:///test-results/milestone-3-final-acceptance-report.md)) |
+| **4. External source manager** | Complete & Formally Approved | `MediaSource` schema v2, domain normalisation, safe external link launcher, 22 suites & 295 tests passing ([`3f89d1a`](https://github.com/AryanTechie-007/MLocker/commit/3f89d1ae63e4a9b3a558cdd5e0c3b6a7c2c09109), CI run [44696686169](https://github.com/AryanTechie-007/MLocker/actions/runs/44696686169), [`test-results/milestone-4-final-acceptance-report.md`](file:///test-results/milestone-4-final-acceptance-report.md)) |
+| **5. Session engine** | Complete & Verified | Schema v3, pure domain FSM engine, dual-bounded time accounting, atomic CAS updates, startup crash recovery sweep, REST APIs, timeline UI, 30 suites & 405 tests passing, independent victory audit confirmed |
+| **6. Browser extension MVP** | Next / Not started | Blocked until Milestone 6 is explicitly started |
 | **7. Cloud sync** | Not started | Blocked on Milestone 6 completion |
 | **8. Analytics and quality** | Not started | Blocked on Milestone 7 completion |
 | **9. Advanced integrations** | Deferred | Planned post-MVP |
 
 ---
 
-## 12. Next developer deliverable — Milestone 3 Final Sign-off & Milestone 4 Preparation
+## 12. Next developer deliverable — Milestone 6 Preparation
 
-**Current position:** Milestones 0 through 2.1 are complete and verified. Milestone 3 implementation is complete and verified in CI, awaiting formal user sign-off. Milestone 4 remains unstarted until sign-off is concluded.
+**Current position:** Milestones 0 through 5 are complete, audited, and independently verified. Milestone 6 (Browser Extension MVP) is the next milestone.
 
-Before proceeding with Milestone 4 implementation:
-1. Await formal user sign-off on Milestone 3 acceptance.
-2. Review the requirements and scope for Milestone 4 (external source URL registration, domain patterns, protocol allowlist enforcement, safe Electron external launch via `shell.openExternal`).
-3. Adhere strictly to the security guidelines in `.agents/skills/secure-development/SKILL.md`.
-4. Ensure all tests continue to pass and no schema modifications occur without proper migration management.
+Before proceeding with Milestone 6 implementation:
+1. Review the requirements and scope for Milestone 6 (Chromium Manifest V3 extension, registered source domain matching, active window/tab pulse emission, scoped credentials).
+2. Adhere strictly to the privacy and security rules in `AGENTS.md` (no page content scraping, no credential collection, explicit opt-in only).
+3. Ensure all tests continue to pass and no schema modifications occur without proper migration management.

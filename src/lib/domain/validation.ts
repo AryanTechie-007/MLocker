@@ -190,3 +190,158 @@ export const UpdateMediaSourceSchema = z.object({
 
 export type CreateMediaSourceInput = z.infer<typeof CreateMediaSourceSchema>;
 export type UpdateMediaSourceInput = z.infer<typeof UpdateMediaSourceSchema>;
+
+// ---------------------------------------------------------------------------
+// Activity Sessions & Tracking (Milestone 5)
+// ---------------------------------------------------------------------------
+
+import {
+  SESSION_STATUSES,
+  SESSION_CLOSE_REASONS,
+  SESSION_EVENT_TYPES,
+  SESSION_SOURCE_TYPES,
+  type SessionStatus,
+  type SessionCloseReason,
+  type SessionEventType,
+  type SessionSourceType,
+} from "./session-engine";
+
+export {
+  SESSION_STATUSES,
+  SESSION_CLOSE_REASONS,
+  SESSION_EVENT_TYPES,
+  SESSION_SOURCE_TYPES,
+  type SessionStatus,
+  type SessionCloseReason,
+  type SessionEventType,
+  type SessionSourceType,
+};
+
+export const SessionStatusEnum = z.enum(SESSION_STATUSES);
+export const SessionCloseReasonEnum = z.enum(SESSION_CLOSE_REASONS);
+export const SessionEventTypeEnum = z.enum(SESSION_EVENT_TYPES);
+export const SessionSourceTypeEnum = z.enum(SESSION_SOURCE_TYPES);
+
+export const HeartbeatPayloadSchema = z.object({
+  sessionId: SafeIdSchema,
+  userMediaId: SafeIdSchema,
+  sequenceNumber: z.number().int().min(1, "Sequence number must be at least 1"),
+  clientNonce: z
+    .string()
+    .trim()
+    .min(1, "Client nonce is required")
+    .max(128, "Client nonce exceeds maximum length"),
+  timestamp: z.string().datetime({ message: "Invalid ISO timestamp format" }),
+  durationSeconds: z.number().int().min(0).max(60).default(15),
+  isFocused: z.boolean().default(true),
+  eventType: SessionEventTypeEnum.default("HEARTBEAT"),
+});
+
+export const CreateSessionSchema = z.object({
+  userMediaId: SafeIdSchema,
+  sourceId: SafeIdSchema.nullable().optional(),
+  sourceType: SessionSourceTypeEnum.optional().default("web"),
+  supersededSessionId: SafeIdSchema.nullable().optional(),
+});
+
+export const CreateManualSessionSchema = z
+  .object({
+    userMediaId: SafeIdSchema,
+    sourceType: z.literal("manual").default("manual"),
+    startedAt: z
+      .string()
+      .datetime({ message: "Invalid startedAt ISO datetime" }),
+    endedAt: z
+      .string()
+      .datetime({ message: "Invalid endedAt ISO datetime" }),
+    activeSeconds: z
+      .number()
+      .int()
+      .min(1, "Active seconds must be at least 1")
+      .max(86400, "Active seconds cannot exceed 24 hours"),
+    notes: z
+      .string()
+      .trim()
+      .max(2000, "Notes cannot exceed 2000 characters")
+      .nullable()
+      .optional(),
+    progressStart: z.number().int().min(0).nullable().optional(),
+    progressEnd: z.number().int().min(0).nullable().optional(),
+  })
+  .refine(
+    (data) => {
+      const start = new Date(data.startedAt).getTime();
+      const end = new Date(data.endedAt).getTime();
+      return end >= start;
+    },
+    {
+      message: "endedAt must be greater than or equal to startedAt",
+      path: ["endedAt"],
+    }
+  )
+  .refine(
+    (data) => {
+      const end = new Date(data.endedAt).getTime();
+      // Allow up to 5 minutes clock skew into future
+      const nowBuffer = Date.now() + 5 * 60 * 1000;
+      return end <= nowBuffer;
+    },
+    {
+      message: "endedAt cannot be in the future",
+      path: ["endedAt"],
+    }
+  )
+  .refine(
+    (data) => {
+      const start = new Date(data.startedAt).getTime();
+      const end = new Date(data.endedAt).getTime();
+      const wallClockSeconds = Math.floor((end - start) / 1000);
+      return data.activeSeconds <= wallClockSeconds;
+    },
+    {
+      message:
+        "activeSeconds cannot exceed wall clock duration between startedAt and endedAt",
+      path: ["activeSeconds"],
+    }
+  );
+
+export const UpdateSessionSchema = z.object({
+  notes: z
+    .string()
+    .trim()
+    .max(2000, "Notes cannot exceed 2000 characters")
+    .nullable()
+    .optional(),
+  rating: z.number().min(0).max(10).nullable().optional(),
+  progressEnd: z.number().int().min(0).nullable().optional(),
+  activeSeconds: z.number().int().min(0).max(86400).optional(),
+});
+
+export const SessionQuerySchema = z.object({
+  userMediaId: SafeIdSchema.optional(),
+  status: SessionStatusEnum.optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+export const TrackingPreferencesSchema = z.object({
+  enabled: z.boolean().default(true),
+  autoAccumulateGameHours: z.boolean().default(false),
+});
+
+export const TrackingToggleSchema = z.object({
+  enabled: z.boolean().optional(),
+  autoAccumulateGameHours: z.boolean().optional(),
+});
+
+export type HeartbeatPayload = z.infer<typeof HeartbeatPayloadSchema>;
+export type CreateSessionInput = z.infer<typeof CreateSessionSchema>;
+export type CreateManualSessionInput = z.infer<
+  typeof CreateManualSessionSchema
+>;
+export type UpdateSessionInput = z.infer<typeof UpdateSessionSchema>;
+export type SessionQueryInput = z.infer<typeof SessionQuerySchema>;
+export type TrackingPreferencesInput = z.infer<
+  typeof TrackingPreferencesSchema
+>;
+export type TrackingToggleInput = z.infer<typeof TrackingToggleSchema>;

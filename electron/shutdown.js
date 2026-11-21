@@ -99,6 +99,24 @@ async function performShutdownSequence(options = {}) {
     logger("[Media Locker] Shutdown Step 1-3: No active HTTP server to close.");
   }
 
+  // 3.5 Flush and seal open activity sessions before disconnecting Prisma Client
+  if (prisma && typeof prisma.$executeRawUnsafe === "function") {
+    logger("[Media Locker] Shutdown Step 3.5: Flushing and sealing open activity sessions...");
+    try {
+      await prisma.$executeRawUnsafe(`
+        UPDATE "ActivitySession"
+        SET "status" = 'completed',
+            "closeReason" = 'clean_shutdown',
+            "endedAt" = COALESCE("lastHeartbeatAt", "startedAt"),
+            "updatedAt" = CURRENT_TIMESTAMP
+        WHERE "status" IN ('active', 'paused')
+      `);
+      logger("[Media Locker] Clean shutdown flush: sealed open session(s) as 'completed'.");
+    } catch (err) {
+      logger(`[Media Locker] Notice: Session flush skipped or completed: ${err.message}`);
+    }
+  }
+
   // 4. Disconnect Prisma Client connections
   if (prisma && typeof prisma.$disconnect === "function") {
     logger("[Media Locker] Shutdown Step 4: Disconnecting Prisma Client...");

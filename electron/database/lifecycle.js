@@ -203,7 +203,31 @@ function initializeDatabase(app, options = {}) {
 
     appliedMigrations = migrationResult.appliedMigrations;
 
-    // 4. Run passive WAL checkpoint after migration
+    // 4. Execute startup crash recovery sweep for unsealed sessions (DEC-M5-03)
+    try {
+      const tableCheck = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ActivitySession'")
+        .get();
+      if (tableCheck) {
+        const sweepResult = db.prepare(`
+          UPDATE "ActivitySession"
+          SET "status" = 'recovered',
+              "closeReason" = 'crash_recovery',
+              "endedAt" = COALESCE("lastHeartbeatAt", "startedAt"),
+              "updatedAt" = CURRENT_TIMESTAMP
+          WHERE "status" IN ('active', 'paused')
+        `).run();
+        if (sweepResult.changes > 0) {
+          logger(
+            `[MLocker Lifecycle] Crash recovery sweep: sealed ${sweepResult.changes} lingering session(s) as 'recovered'.`
+          );
+        }
+      }
+    } catch (sweepErr) {
+      logger(`[MLocker Lifecycle] Warning: Crash recovery sweep failed: ${sweepErr.message}`);
+    }
+
+    // 5. Run passive WAL checkpoint after migration
     db.exec("PRAGMA wal_checkpoint(PASSIVE)");
   } catch (err) {
     // Close active setup connection before attempting rollback

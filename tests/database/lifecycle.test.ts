@@ -129,26 +129,27 @@ describe("Milestone 2: Database Lifecycle & SQLite Migration Suite", () => {
       const customMigrations = [
         ...MIGRATIONS,
         {
-          version: 3,
-          name: "20261120000001_add_notes",
+          version: 4,
+          name: "20261121000001_add_notes",
           sql: 'ALTER TABLE "UserMedia" ADD COLUMN "internalReviewNotes" TEXT;',
         },
       ];
 
       const result = runMigrations(db, {
-        targetVersion: 3,
+        targetVersion: 4,
         migrations: customMigrations,
         logger: () => {},
       });
 
       expect(result.initialVersion).toBe(1);
-      expect(result.finalVersion).toBe(3);
-      expect(result.appliedCount).toBe(2);
+      expect(result.finalVersion).toBe(4);
+      expect(result.appliedCount).toBe(3);
       expect(result.appliedMigrations).toEqual([
         "20261120000000_media_source",
-        "20261120000001_add_notes",
+        "20261121000000_session_engine",
+        "20261121000001_add_notes",
       ]);
-      expect(getSchemaVersion(db)).toBe(3);
+      expect(getSchemaVersion(db)).toBe(4);
 
       // Verify newly added column exists by inserting into it
       db.prepare("INSERT INTO User (id, email) VALUES ('u_mig', 'mig@test.local')").run();
@@ -181,13 +182,13 @@ describe("Milestone 2: Database Lifecycle & SQLite Migration Suite", () => {
       const customMigrations = [
         ...MIGRATIONS,
         {
-          version: 3,
-          name: "20261120000002_add_flag",
+          version: 4,
+          name: "20261121000002_add_flag",
           sql: 'ALTER TABLE "UserMedia" ADD COLUMN "isArchived" BOOLEAN NOT NULL DEFAULT 0;',
         },
       ];
 
-      runMigrations(db, { targetVersion: 3, migrations: customMigrations, logger: () => {} });
+      runMigrations(db, { targetVersion: 4, migrations: customMigrations, logger: () => {} });
 
       // Verify original records are unchanged
       const user = db.prepare("SELECT * FROM User WHERE id = 'u_preserve'").get() as { name: string };
@@ -216,22 +217,22 @@ describe("Milestone 2: Database Lifecycle & SQLite Migration Suite", () => {
       const invalidMigrations = [
         ...MIGRATIONS,
         {
-          version: 3,
-          name: "20261120000003_bad_syntax",
+          version: 4,
+          name: "20261121000003_bad_syntax",
           sql: "ALTER TABLE UserMedia ADD COLUMN validCol TEXT; INVALID SYNTAX ERROR STATEMENT;",
         },
       ];
 
       expect(() => {
         runMigrations(db, {
-          targetVersion: 3,
+          targetVersion: 4,
           migrations: invalidMigrations,
           logger: () => {},
         });
       }).toThrowError(MigrationError);
 
-      // PRAGMA user_version must remain at 2 (since v2 migration succeeded, but v3 failed and rolled back)
-      expect(getSchemaVersion(db)).toBe(2);
+      // PRAGMA user_version must remain at 3 (since v2 and v3 migration succeeded, but v4 failed and rolled back)
+      expect(getSchemaVersion(db)).toBe(3);
 
       // Column 'validCol' must NOT exist because of atomic rollback
       const tableInfo = db.prepare("PRAGMA table_info('UserMedia')").all() as Array<{ name: string }>;

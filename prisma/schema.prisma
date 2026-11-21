@@ -8,14 +8,17 @@ datasource db {
 }
 
 model User {
-  id            String        @id @default(cuid())
-  name          String?
-  email         String        @unique
-  passwordHash  String?
-  image         String?
-  mediaItems    UserMedia[]
-  collections   Collection[]
-  createdAt     DateTime      @default(now())
+  id                  String            @id @default(cuid())
+  name                String?
+  email               String            @unique
+  passwordHash        String?
+  image               String?
+  trackingPreferences String?
+  mediaItems          UserMedia[]
+  collections         Collection[]
+  sessions            ActivitySession[]
+  activityEvents      ActivityEvent[]
+  createdAt           DateTime          @default(now())
 }
 
 model UserMedia {
@@ -55,22 +58,26 @@ model UserMedia {
 
   collectionItems CollectionItem[]
   sources         MediaSource[]
+  sessions        ActivitySession[]
+  activityEvents  ActivityEvent[]
 
   @@unique([userId, mediaType, externalId])
+  @@unique([id, userId])
   @@index([userId, mediaType])
   @@index([userId, status])
 }
 
 model MediaSource {
-  id               String     @id @default(cuid())
+  id               String            @id @default(cuid())
   userMediaId      String
-  userMedia        UserMedia  @relation(fields: [userMediaId], references: [id], onDelete: Cascade)
+  userMedia        UserMedia         @relation(fields: [userMediaId], references: [id], onDelete: Cascade)
   name             String
   url              String
   normalizedDomain String
-  sourceType       String     @default("web") // "stream", "reader", "game", "store", "web"
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
+  sourceType       String            @default("web") // "stream", "reader", "game", "store", "web"
+  sessions         ActivitySession[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   @@index([userMediaId])
   @@index([normalizedDomain])
@@ -100,4 +107,59 @@ model CollectionItem {
   createdAt     DateTime   @default(now())
 
   @@unique([collectionId, userMediaId])
+}
+
+model ActivitySession {
+  id                 String          @id @default(cuid())
+  userId             String
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userMediaId        String
+  userMedia          UserMedia       @relation(fields: [userMediaId, userId], references: [id, userId], onDelete: Cascade)
+  sourceId           String?
+  source             MediaSource?    @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  startedAt          DateTime
+  endedAt            DateTime?
+  lastHeartbeatAt    DateTime?
+  activeSeconds      Int             @default(0)
+  lastSequenceNumber Int             @default(0)
+  lastClientNonce    String?
+  sourceType         String          @default("web") // "web" | "desktop" | "manual" | "extension"
+  isManual           Boolean         @default(false)
+  status             String          @default("active") // "active" | "paused" | "completed" | "recovered" | "abandoned"
+  closeReason        String?
+  notes              String?
+  progressStart      Int?
+  progressEnd        Int?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  events             ActivityEvent[]
+
+  @@unique([id, userId, userMediaId])
+  @@index([userId, userMediaId])
+  @@index([userId, startedAt])
+  @@index([userMediaId])
+  @@index([status])
+}
+
+model ActivityEvent {
+  id              String           @id @default(cuid())
+  userId          String
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId       String?
+  session         ActivitySession? @relation(fields: [sessionId, userId, userMediaId], references: [id, userId, userMediaId], onDelete: Cascade)
+  userMediaId     String
+  userMedia       UserMedia        @relation(fields: [userMediaId, userId], references: [id, userId], onDelete: Cascade)
+  clientNonce     String
+  eventType       String           @default("HEARTBEAT")
+  sequenceNumber  Int?
+  durationSeconds Int              @default(15)
+  isFocused       Boolean          @default(true)
+  timestamp       DateTime
+  createdAt       DateTime         @default(now())
+
+  @@unique([userId, clientNonce])
+  @@index([userId, userMediaId])
+  @@index([sessionId])
+  @@index([timestamp])
 }
