@@ -119,3 +119,25 @@ export interface StatsResponse {
   topGenres: { name: string; count: number }[];
   topRated: UserMediaItem[];
 }
+
+export interface ActivitySessionItem {
+  id: string;
+  userId: string;
+  userMediaId: string;
+  sourceId: string | null;
+  startedAt: string;
+  endedAt: string | null;
+  lastHeartbeatAt: string | null;
+  activeSeconds: number;
+  lastSequenceNumber: number;
+  sourceType: string;
+  isManual: boolean;
+  status: string;
+  closeReason: string | null;
+  notes: string | null;
+  progressStart: number | null;
+  progressEnd: number | null;
+  createdAt: string;
+  updatedAt: string;
+  source?: MediaSourceItem | null;
+}

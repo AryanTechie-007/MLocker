@@ -15,10 +15,14 @@ import {
 import StatusBadge from "@/components/StatusBadge";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import ExternalSourceManager from "@/components/ExternalSourceManager";
+import ActiveSessionTracker from "@/components/ActiveSessionTracker";
+import ManualSessionModal from "@/components/ManualSessionModal";
+import SessionHistory from "@/components/SessionHistory";
 import { useToast } from "@/components/Toast";
 import { Skeleton } from "@/components/Skeleton";
 import { getQuickSearchProviders } from "@/components/WatchProviderBadge";
 import { UserMediaItem, Collection } from "@/lib/types";
+import { PlusCircle } from "lucide-react";
 
 export default function MediaDetailPage({
   params,
@@ -46,6 +50,86 @@ export default function MediaDetailPage({
   const [readChapters, setReadChapters] = useState<number>(0);
   const [totalChapters, setTotalChapters] = useState<number | null>(null);
   const [hoursPlayed, setHoursPlayed] = useState<number>(0);
+
+  // Milestone 5: Session & Tracking State
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [historyRefreshTrigger, setHistoryRefreshTrigger] = useState(0);
+  const [completedSessionPrompt, setCompletedSessionPrompt] = useState<{
+    id: string;
+    activeSeconds: number;
+  } | null>(null);
+  const [isProgressPromptOpen, setIsProgressPromptOpen] = useState(false);
+
+  // Active Session Complete Callback
+  const handleActiveSessionComplete = (session: {
+    id: string;
+    activeSeconds: number;
+  }) => {
+    setHistoryRefreshTrigger((prev) => prev + 1);
+    if (session.activeSeconds >= 60) {
+      setCompletedSessionPrompt(session);
+      setIsProgressPromptOpen(true);
+    }
+  };
+
+  // Opt-in confirmation dialog message builder
+  const getProgressPromptMessage = () => {
+    if (!completedSessionPrompt || !item) return "";
+    const mins = Math.round(completedSessionPrompt.activeSeconds / 60);
+
+    if (item.mediaType === "anime" || item.mediaType === "tv") {
+      const nextEp = (watchedEpisodes || 0) + 1;
+      return `You completed an observed active session of ${mins} min(s). Would you like to mark Episode ${nextEp} as watched (+1 Ep)?`;
+    }
+    if (item.mediaType === "manga" || item.mediaType === "novel") {
+      const nextCh = (readChapters || 0) + 1;
+      return `You completed an observed active session of ${mins} min(s). Would you like to mark Chapter ${nextCh} as read (+1 Ch)?`;
+    }
+    if (item.mediaType === "game") {
+      const hrs = Number((completedSessionPrompt.activeSeconds / 3600).toFixed(1));
+      return `You completed an observed active session of ${mins} min(s). Would you like to add ${hrs} hr(s) to your total playtime?`;
+    }
+    return `You completed an observed active session of ${mins} min(s). Would you like to update your progress?`;
+  };
+
+  // Confirm progress increment handler (opt-in explicit action)
+  const handleConfirmProgressIncrement = async () => {
+    if (!completedSessionPrompt || !item) return;
+
+    let updatedWatched = watchedEpisodes;
+    let updatedRead = readChapters;
+    let updatedHours = hoursPlayed;
+
+    if (item.mediaType === "anime" || item.mediaType === "tv") {
+      updatedWatched = (watchedEpisodes || 0) + 1;
+      setWatchedEpisodes(updatedWatched);
+    } else if (item.mediaType === "manga" || item.mediaType === "novel") {
+      updatedRead = (readChapters || 0) + 1;
+      setReadChapters(updatedRead);
+    } else if (item.mediaType === "game") {
+      const added = Number((completedSessionPrompt.activeSeconds / 3600).toFixed(1));
+      updatedHours = Number(((hoursPlayed || 0) + added).toFixed(1));
+      setHoursPlayed(updatedHours);
+    }
+
+    try {
+      await fetch(`/api/media/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          watchedEpisodes: updatedWatched,
+          readChapters: updatedRead,
+          hoursPlayed: updatedHours,
+        }),
+      });
+      showToast("Media progress updated successfully", "success");
+    } catch {
+      showToast("Failed to save progress update", "error");
+    } finally {
+      setIsProgressPromptOpen(false);
+      setCompletedSessionPrompt(null);
+    }
+  };
 
   // Fetch Media Details & Collections
   const fetchData = useCallback(async () => {
@@ -502,6 +586,41 @@ export default function MediaDetailPage({
         initialSources={item.sources || []}
       />
 
+      {/* Milestone 5: Active Tracking & Session History Section */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "24px", marginBottom: "36px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
+          <div>
+            <h2 style={{ fontSize: "1.3rem", fontWeight: 700, color: "#fff" }}>
+              Session Engine & Activity Tracking
+            </h2>
+            <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginTop: "2px" }}>
+              Track observed focus engagement in real-time or log retroactive media sessions.
+            </p>
+          </div>
+          <button
+            onClick={() => setIsManualModalOpen(true)}
+            className="btn-secondary"
+            style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
+          >
+            <PlusCircle size={16} /> Log Retroactive Session
+          </button>
+        </div>
+
+        <ActiveSessionTracker
+          userMediaId={item.id}
+          mediaTitle={item.title}
+          mediaType={item.mediaType}
+          sources={item.sources || []}
+          onSessionComplete={handleActiveSessionComplete}
+        />
+
+        <SessionHistory
+          userMediaId={item.id}
+          mediaTitle={item.title}
+          refreshTrigger={historyRefreshTrigger}
+        />
+      </div>
+
       {/* Interactive Tracking Control Center */}
       <div
         style={{
@@ -731,6 +850,36 @@ export default function MediaDetailPage({
         loading={deleting}
         onConfirm={executeDelete}
         onCancel={() => setIsConfirmOpen(false)}
+      />
+
+      <ManualSessionModal
+        isOpen={isManualModalOpen}
+        onClose={() => setIsManualModalOpen(false)}
+        userMediaId={item.id}
+        mediaTitle={item.title}
+        mediaType={item.mediaType}
+        currentProgress={
+          item.mediaType === "anime" || item.mediaType === "tv"
+            ? watchedEpisodes
+            : item.mediaType === "manga" || item.mediaType === "novel"
+            ? readChapters
+            : hoursPlayed
+        }
+        onSessionCreated={() => setHistoryRefreshTrigger((prev) => prev + 1)}
+      />
+
+      {/* Opt-In Media Progress Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={isProgressPromptOpen && Boolean(completedSessionPrompt)}
+        title="Update Media Progress?"
+        message={getProgressPromptMessage()}
+        confirmText="Confirm Update"
+        cancelText="Keep Unchanged"
+        onConfirm={handleConfirmProgressIncrement}
+        onCancel={() => {
+          setIsProgressPromptOpen(false);
+          setCompletedSessionPrompt(null);
+        }}
       />
     </div>
   );

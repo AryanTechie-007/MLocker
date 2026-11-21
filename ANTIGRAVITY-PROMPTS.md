@@ -149,28 +149,20 @@ All six media categories (Movies, TV Shows, Anime, Manga, Games, Novels/Books) a
 
 ---
 
-### Milestone 4: External Source Manager & Link Launcher [AUTHORIZED / READY FOR IMPLEMENTATION]
-```markdown
-Read @AGENTS.md, @implementation-plan.md, and @.agents/skills/secure-development/SKILL.md.
+### Milestone 4: External Source Manager & Link Launcher [COMPLETE & APPROVED]
 
-TASK:
-Implement Milestone 4: External Source Manager & Link Launcher.
+**Status:** Complete & Formally Approved by Project Owner  
+**Audit Report:** [`test-results/milestone-4-readiness-and-plan.md`](file:///test-results/milestone-4-readiness-and-plan.md)  
+**Implementation Report:** [`test-results/milestone-4-implementation-report.md`](file:///test-results/milestone-4-implementation-report.md)  
+**Acceptance Report:** [`test-results/milestone-4-final-acceptance-report.md`](file:///test-results/milestone-4-final-acceptance-report.md) (Formally Approved)  
+**Review Branch:** `review/milestone-4-external-sources` (HEAD: `3f89d1ae63e4a9b3a558cdd5e0c3b6a7c2c09109`, Draft PR #1)  
+**CI Verification:** GitHub Actions Run [44696686169](https://github.com/AryanTechie-007/MLocker/actions/runs/44696686169) (Ubuntu + Windows, 22 suites, 295 tests passed, clean Next.js build & packaged Electron runtime verification).
 
-REQUIREMENTS:
-1. Allow users to register external source URLs and domain patterns for any MediaItem.
-2. Validate URLs strictly (`http:` and `https:` protocols only).
-3. In Electron, launch links safely via `shell.openExternal` after protocol validation (never load external URLs in the app window).
-4. In Web, open links safely with `rel="noopener noreferrer"`.
-5. Provide UI to manage, label, and toggle tracking on external sources.
+External Source Management and safe link launching (`ExternalSourceManager`) are fully implemented and verified across Web and Desktop (Electron). Milestone 4 was formally accepted and approved by the project owner on November 20, 2026.
 
-VERIFICATION:
-- Test invalid protocol rejection (`javascript:`, `file:`).
-- Verify launch behavior on desktop and web.
-- Run `npx tsc --noEmit`.
-- Update Milestone 4 in `implementation-plan.md`.
-```
+---
 
-### Milestone 5: Session Engine & Activity Ingestion Core
+### Milestone 5: Session Engine & Activity Ingestion Core [AUTHORIZED / PLANNING]
 ```markdown
 Read @AGENTS.md, @implementation-plan.md, and @.agents/skills/mlocker-session-tracking/SKILL.md.
 

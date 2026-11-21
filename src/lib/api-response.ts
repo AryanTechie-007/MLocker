@@ -65,6 +65,17 @@ export function validationErrorResponse(
   );
 }
 
+export function conflictResponse(
+  message = "Conflict",
+  code = "CONFLICT",
+  details?: unknown
+): NextResponse<ApiErrorEnvelope> {
+  return NextResponse.json(
+    { error: message, code, details },
+    { status: 409 }
+  );
+}
+
 export function internalErrorResponse(
   message = "An unexpected internal server error occurred"
 ): NextResponse<ApiErrorEnvelope> {

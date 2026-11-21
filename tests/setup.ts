@@ -44,6 +44,16 @@ if (DatabaseSync) {
     } else {
       db.exec("PRAGMA user_version = 1");
     }
+
+    const migration3Path = path.resolve(
+      __dirname,
+      "../prisma/migrations/20261121000000_session_engine/migration.sql"
+    );
+    if (fs.existsSync(migration3Path)) {
+      const sql3 = fs.readFileSync(migration3Path, "utf8");
+      db.exec(sql3);
+      db.exec("PRAGMA user_version = 3");
+    }
     db.close();
   } catch (err: any) {
     console.error("[Test Setup] Failed initializing isolated test database:", err.message);
