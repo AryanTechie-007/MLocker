@@ -1,5 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 
+vi.mock("next-auth", () => ({
+  default: vi.fn(() => ({
+    auth: vi.fn((fn: any) => fn),
+  })),
+}));
 vi.mock("@/lib/auth", () => ({
   auth: vi.fn((fn: any) => fn),
 }));

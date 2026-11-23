@@ -94,6 +94,11 @@ function getOrCreateDesktopSecret() {
  * Starts the embedded Next.js production server
  */
 async function startProductionServer() {
+  const desktopSecret = getOrCreateDesktopSecret();
+  process.env.NEXTAUTH_SECRET = desktopSecret;
+  process.env.AUTH_SECRET = desktopSecret;
+  process.env.AUTH_TRUST_HOST = "true";
+
   const next = require("next");
   const appDir = path.join(__dirname, "..");
 
@@ -131,12 +136,8 @@ async function startProductionServer() {
   const { server, port } = await tryListen(3000);
   nextServer = server;
 
-  const desktopSecret = getOrCreateDesktopSecret();
   process.env.NEXTAUTH_URL = `http://localhost:${port}`;
   process.env.AUTH_URL = `http://localhost:${port}`;
-  process.env.NEXTAUTH_SECRET = desktopSecret;
-  process.env.AUTH_SECRET = desktopSecret;
-  process.env.AUTH_TRUST_HOST = "true";
 
   console.log(`[Media Locker] Production server active at http://127.0.0.1:${port}`);
   return `http://localhost:${port}`;
@@ -178,6 +179,10 @@ function createMainWindow(targetUrl) {
 
   // Establish strict navigation and window-open guards (Milestone 1.2)
   setupNavigationGuards(mainWindow, targetUrl, shell);
+
+  mainWindow.webContents.on("did-fail-load", (event, errorCode, errorDescription, validatedURL) => {
+    console.error(`[Media Locker] Failed to load ${validatedURL}: ${errorCode} (${errorDescription})`);
+  });
 
   mainWindow.loadURL(targetUrl);
 

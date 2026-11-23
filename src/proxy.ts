@@ -1,4 +1,5 @@
-import { auth } from "@/lib/auth";
+import NextAuth from "next-auth";
+import { authConfig } from "@/lib/auth.config";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
@@ -45,8 +46,11 @@ export function handleProxyRequest(req: ProxyRequestLike): NextResponse {
 
 /**
  * Next.js 16 Proxy entrypoint wrapping NextAuth v5 session resolution
+ * Uses edge-compatible authConfig to avoid bundling Node-only Prisma dependencies.
  */
-export const proxy = auth((req: NextRequest & { auth?: unknown }) => {
+const { auth: proxyAuth } = NextAuth(authConfig);
+
+export const proxy = proxyAuth((req: NextRequest & { auth?: unknown }) => {
   return handleProxyRequest(req);
 });
 

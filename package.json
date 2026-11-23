@@ -1,6 +1,6 @@
 {
   "name": "media-locker",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "main": "electron/main.js",
   "scripts": {
@@ -54,8 +54,13 @@
       "electron/**/*",
       ".next/**/*",
       "public/**/*",
-      "prisma/**/*",
-      "node_modules/.prisma/**/*"
+      "prisma/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "node_modules/.prisma",
+        "to": "app/node_modules/.prisma"
+      }
     ],
     "win": {
       "target": "nsis",

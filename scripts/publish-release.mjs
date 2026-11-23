@@ -14,11 +14,14 @@ if (!m) {
 }
 const token = m[1].trim();
 const repo = "AryanTechie-007/MLocker";
+const pkg = JSON.parse(fs.readFileSync(path.resolve("package.json"), "utf-8"));
+const version = pkg.version;
+const tagName = `v${version}`;
 
 async function main() {
-  console.log("Checking if release v0.1.1 already exists...");
+  console.log(`Checking if release ${tagName} already exists...`);
   const checkRes = await fetch(
-    `https://api.github.com/repos/${repo}/releases/tags/v0.1.1`,
+    `https://api.github.com/repos/${repo}/releases/tags/${tagName}`,
     {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -31,9 +34,9 @@ async function main() {
   let release;
   if (checkRes.ok) {
     release = await checkRes.json();
-    console.log(`Release v0.1.1 already exists (ID: ${release.id}).`);
+    console.log(`Release ${tagName} already exists (ID: ${release.id}).`);
   } else {
-    console.log("Creating new GitHub release for v0.1.1...");
+    console.log(`Creating new GitHub release for ${tagName}...`);
     const createRes = await fetch(
       `https://api.github.com/repos/${repo}/releases`,
       {
@@ -45,21 +48,21 @@ async function main() {
           "User-Agent": "MLocker-Release-Bot",
         },
         body: JSON.stringify({
-          tag_name: "v0.1.1",
+          tag_name: tagName,
           target_commitish: "main",
-          name: "Media Locker v0.1.1 (Windows Setup)",
+          name: `Media Locker ${tagName} (Windows Setup)`,
           body: [
-            "## Media Locker v0.1.1 — Windows Hotfix Release",
+            `## Media Locker ${tagName} — Windows Hotfix Release`,
             "",
             "### Fixes & Improvements:",
-            "- **Resilient Client Fetching:** Centralized client data fetching with `apiFetch`, correctly distinguishing true network drops, gateway HTML error pages (502/504), and structured API error responses, eliminating false 'Network error' alerts.",
-            "- **Third-Party Provider Timeouts:** Added 8-second timeouts to TMDb, Steam, iTunes, and TVmaze search integrations to prevent slow upstream requests from causing gateway timeouts.",
-            "- **Active Session Tracker Hardening:** Proper handling of 401 session expiration, 409 sequence gap recovery, and automatic pulse queue retransmission.",
-            "- **Route Protection:** Added Next.js 16 route proxy redirecting unauthenticated page requests to login with return path/query preservation.",
-            "- **Zero-Leak Error Handling:** Guarded JSON body parsing and sanitized 500 error responses across all API endpoints.",
+            "- **Resolve Release Blank Screen:** Packaged generated `.prisma` runtime engine client into production distributions via `extraResources`, resolving silent module missing errors in Next.js middleware and API routes.",
+            "- **Decoupled Route Proxy:** Separated lightweight Edge-compatible `authConfig` from database-dependent server auth handlers so middleware never pulls in `@prisma/client`.",
+            "- **Deterministic Secret Initialization:** Ensured `AUTH_SECRET` and desktop configuration are initialized before Next.js production server preparation.",
+            "- **Resilient Client Fetching:** Centralized client data fetching with `apiFetch`, correctly distinguishing true network drops, gateway HTML error pages (502/504), and structured API error responses.",
+            "- **Third-Party Provider Timeouts:** Added 8-second timeouts to TMDb, Steam, iTunes, and TVmaze search integrations.",
             "",
             "### Assets Included:",
-            "- `Media.Locker.Setup.0.1.1.exe` — Windows 64-bit Installer with local SQLite provisioning.",
+            `- \`Media.Locker.Setup.${version}.exe\` — Windows 64-bit Installer with local SQLite provisioning.`,
           ].join("\n"),
           draft: false,
           prerelease: false,
@@ -77,13 +80,13 @@ async function main() {
   }
 
   // 2. Upload asset
-  const exePath = path.resolve("dist", "Media Locker Setup 0.1.1.exe");
+  const exePath = path.resolve("dist", `Media Locker Setup ${version}.exe`);
   if (!fs.existsSync(exePath)) {
     console.error("Installer executable not found at:", exePath);
     process.exit(1);
   }
 
-  const assetName = "Media.Locker.Setup.0.1.1.exe";
+  const assetName = `Media.Locker.Setup.${version}.exe`;
   const stats = fs.statSync(exePath);
   console.log(`Uploading ${assetName} (${(stats.size / 1024 / 1024).toFixed(1)} MB)...`);
 
