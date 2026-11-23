@@ -12,6 +12,7 @@ import {
   Gamepad2,
   ShoppingBag,
   Loader2,
+  X,
 } from "lucide-react";
 import { MediaSourceItem } from "@/lib/api/types";
 import {
@@ -189,99 +190,215 @@ export default function ExternalSourceManager({
   const renderTypeIcon = (type: string) => {
     switch (type) {
       case "stream":
-        return <Tv className="w-3.5 h-3.5 text-blue-400" />;
+        return <Tv size={14} style={{ color: "var(--accent-cyan)" }} />;
       case "reader":
-        return <BookOpen className="w-3.5 h-3.5 text-emerald-400" />;
+        return <BookOpen size={14} style={{ color: "var(--status-completed)" }} />;
       case "game":
-        return <Gamepad2 className="w-3.5 h-3.5 text-purple-400" />;
+        return <Gamepad2 size={14} style={{ color: "var(--accent-purple)" }} />;
       case "store":
-        return <ShoppingBag className="w-3.5 h-3.5 text-amber-400" />;
+        return <ShoppingBag size={14} style={{ color: "var(--accent-amber)" }} />;
       default:
-        return <Globe className="w-3.5 h-3.5 text-slate-400" />;
+        return <Globe size={14} style={{ color: "var(--text-muted)" }} />;
     }
   };
 
   const previewDomain = extractNormalizedDomain(url);
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 mb-8">
-      <div className="flex items-center justify-between mb-4">
+    <div
+      className="glass-panel"
+      style={{
+        padding: "24px",
+        borderRadius: "var(--radius-lg)",
+        marginBottom: "32px",
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: "12px",
+          marginBottom: "18px",
+        }}
+      >
         <div>
-          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-            <Globe className="w-5 h-5 text-indigo-400" />
+          <h2
+            style={{
+              fontSize: "1.2rem",
+              fontWeight: 700,
+              color: "#fff",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <Globe size={20} style={{ color: "var(--accent-purple)" }} />
             External Sources & Links
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginTop: "2px" }}>
             Register your preferred watch, read, play, or store destinations.
           </p>
         </div>
         <button
           onClick={handleOpenAdd}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded-lg transition-colors shadow-sm cursor-pointer"
+          className="btn-primary"
+          style={{ padding: "8px 16px", fontSize: "0.85rem" }}
         >
-          <Plus className="w-3.5 h-3.5" />
-          Add Source
+          <Plus size={16} /> Add Source
         </button>
       </div>
 
       {sources.length === 0 ? (
-        <div className="p-6 text-center border border-dashed border-slate-800 rounded-lg">
-          <p className="text-sm text-slate-400">
+        <div
+          style={{
+            padding: "36px 20px",
+            textAlign: "center",
+            border: "1px dashed var(--border-subtle)",
+            borderRadius: "var(--radius-md)",
+            background: "rgba(255, 255, 255, 0.015)",
+          }}
+        >
+          <Globe
+            size={36}
+            style={{ color: "var(--text-dim)", margin: "0 auto 10px", opacity: 0.5 }}
+          />
+          <p style={{ fontSize: "0.95rem", color: "var(--text-muted)", fontWeight: 500 }}>
             No external sources configured for this item yet.
           </p>
-          <p className="text-xs text-slate-500 mt-1">
+          <p style={{ fontSize: "0.82rem", color: "var(--text-dim)", marginTop: "4px" }}>
             Click &ldquo;Add Source&rdquo; to attach your personalized streaming, reading, or storefront links.
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+            gap: "14px",
+          }}
+        >
           {sources.map((src) => (
             <div
               key={src.id}
-              className="group relative flex flex-col justify-between p-3.5 bg-slate-950/70 border border-slate-800/80 hover:border-slate-700 rounded-lg transition-all"
+              className="glass-panel"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                padding: "16px",
+                borderRadius: "var(--radius-md)",
+                backgroundColor: "var(--bg-elevated)",
+                border: "1px solid var(--border-subtle)",
+                gap: "12px",
+                transition: "all 0.2s ease",
+              }}
             >
               <div>
-                <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <span className="font-medium text-sm text-slate-200 truncate flex items-center gap-1.5">
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "8px",
+                    marginBottom: "6px",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontWeight: 600,
+                      fontSize: "0.9rem",
+                      color: "var(--text-main)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     {renderTypeIcon(src.sourceType)}
                     {src.name}
                   </span>
-                  <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded">
+                  <span
+                    style={{
+                      fontSize: "0.68rem",
+                      textTransform: "uppercase",
+                      fontFamily: "var(--font-mono)",
+                      padding: "2px 8px",
+                      borderRadius: "9999px",
+                      backgroundColor: "rgba(139, 92, 246, 0.15)",
+                      color: "var(--accent-purple)",
+                      border: "1px solid rgba(139, 92, 246, 0.3)",
+                      fontWeight: 700,
+                    }}
+                  >
                     {src.sourceType}
                   </span>
                 </div>
-                <p className="text-xs font-mono text-slate-400 truncate mb-3" title={src.url}>
+                <p
+                  title={src.url}
+                  style={{
+                    fontSize: "0.78rem",
+                    fontFamily: "var(--font-mono)",
+                    color: "var(--text-dim)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
                   {src.normalizedDomain || src.url}
                 </p>
               </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-slate-800/60 mt-auto">
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingTop: "12px",
+                  borderTop: "1px solid var(--border-subtle)",
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => launchExternalUrl(src.url)}
-                  className="flex items-center gap-1.5 px-3 py-1 bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white text-xs font-medium rounded transition-colors cursor-pointer"
+                  className="btn-secondary"
+                  style={{
+                    padding: "5px 12px",
+                    fontSize: "0.8rem",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    color: "var(--accent-cyan)",
+                    borderColor: "rgba(6, 182, 212, 0.3)",
+                  }}
                   title={`Launch ${src.name}`}
                 >
-                  <ExternalLink className="w-3.5 h-3.5" />
+                  <ExternalLink size={14} />
                   Launch
                 </button>
 
-                <div className="flex items-center gap-1">
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                   <button
                     type="button"
                     onClick={() => handleOpenEdit(src)}
-                    className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded transition-colors cursor-pointer"
+                    className="btn-icon"
+                    style={{ width: "32px", height: "32px" }}
                     title="Edit source"
                   >
-                    <Edit2 className="w-3.5 h-3.5" />
+                    <Edit2 size={14} />
                   </button>
                   <button
                     type="button"
                     onClick={() => setSourceToDelete(src)}
-                    className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-950/30 rounded transition-colors cursor-pointer"
+                    className="btn-icon"
+                    style={{ width: "32px", height: "32px", color: "var(--status-dropped)" }}
                     title="Delete source"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 size={14} />
                   </button>
                 </div>
               </div>
@@ -292,25 +409,90 @@ export default function ExternalSourceManager({
 
       {/* Add / Edit Source Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
-            <h3 className="text-lg font-semibold text-white mb-1">
-              {editingSource ? "Edit External Source" : "Add External Source"}
-            </h3>
-            <p className="text-xs text-slate-400 mb-4">
-              Configuring destination for <span className="text-slate-200 font-medium">{mediaTitle}</span>
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.78)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 100,
+            padding: "20px",
+          }}
+          onClick={() => setIsModalOpen(false)}
+        >
+          <div
+            className="glass-panel"
+            style={{
+              width: "100%",
+              maxWidth: "480px",
+              backgroundColor: "var(--bg-elevated)",
+              border: "1px solid var(--border-highlight)",
+              borderRadius: "var(--radius-lg)",
+              padding: "28px",
+              boxShadow: "var(--shadow-pop)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "6px",
+              }}
+            >
+              <h3 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#fff" }}>
+                {editingSource ? "Edit External Source" : "Add External Source"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="btn-icon"
+                style={{ width: "32px", height: "32px" }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginBottom: "20px" }}>
+              Configuring destination for{" "}
+              <span style={{ color: "var(--text-main)", fontWeight: 600 }}>{mediaTitle}</span>
             </p>
 
             {formError && (
-              <div className="mb-4 p-3 bg-rose-950/50 border border-rose-800/80 rounded-lg text-xs text-rose-300">
+              <div
+                style={{
+                  marginBottom: "16px",
+                  padding: "10px 14px",
+                  borderRadius: "var(--radius-sm)",
+                  backgroundColor: "rgba(248, 113, 113, 0.15)",
+                  border: "1px solid rgba(248, 113, 113, 0.3)",
+                  color: "var(--status-dropped)",
+                  fontSize: "0.85rem",
+                }}
+              >
                 {formError}
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form
+              onSubmit={handleSubmit}
+              style={{ display: "flex", flexDirection: "column", gap: "16px" }}
+            >
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Source Display Name <span className="text-rose-400">*</span>
+                <label
+                  style={{
+                    fontSize: "0.85rem",
+                    fontWeight: 600,
+                    color: "var(--text-muted)",
+                    display: "block",
+                    marginBottom: "6px",
+                  }}
+                >
+                  Source Display Name <span style={{ color: "var(--status-dropped)" }}>*</span>
                 </label>
                 <input
                   type="text"
@@ -319,13 +501,21 @@ export default function ExternalSourceManager({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   maxLength={100}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-lg text-sm text-slate-100 placeholder-slate-500 focus:outline-hidden"
+                  className="input-control"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Destination URL <span className="text-rose-400">*</span>
+                <label
+                  style={{
+                    fontSize: "0.85rem",
+                    fontWeight: 600,
+                    color: "var(--text-muted)",
+                    display: "block",
+                    marginBottom: "6px",
+                  }}
+                >
+                  Destination URL <span style={{ color: "var(--status-dropped)" }}>*</span>
                 </label>
                 <input
                   type="url"
@@ -334,47 +524,78 @@ export default function ExternalSourceManager({
                   value={url}
                   onChange={(e) => handleUrlChange(e.target.value)}
                   maxLength={2000}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-lg text-sm text-slate-100 placeholder-slate-500 focus:outline-hidden font-mono text-xs"
+                  className="input-control"
+                  style={{ fontFamily: "var(--font-mono)", fontSize: "0.85rem" }}
                 />
                 {previewDomain && (
-                  <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1 font-mono">
-                    <span className="text-slate-500">Domain:</span> {previewDomain}
+                  <p
+                    style={{
+                      fontSize: "0.75rem",
+                      color: "var(--text-muted)",
+                      marginTop: "6px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  >
+                    <span style={{ color: "var(--text-dim)" }}>Domain:</span> {previewDomain}
                   </p>
                 )}
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
+                <label
+                  style={{
+                    fontSize: "0.85rem",
+                    fontWeight: 600,
+                    color: "var(--text-muted)",
+                    display: "block",
+                    marginBottom: "6px",
+                  }}
+                >
                   Category / Type
                 </label>
                 <select
                   value={sourceType}
                   onChange={(e) => setSourceType(e.target.value as SourceType)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-lg text-sm text-slate-100 focus:outline-hidden capitalize"
+                  className="select-control"
+                  style={{ textTransform: "capitalize" }}
                 >
                   {SOURCE_TYPES.map((t) => (
-                    <option key={t} value={t} className="capitalize">
+                    <option key={t} value={t} style={{ textTransform: "capitalize" }}>
                       {t}
                     </option>
                   ))}
                 </select>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "flex-end",
+                  gap: "10px",
+                  paddingTop: "16px",
+                  borderTop: "1px solid var(--border-subtle)",
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   disabled={submitting}
-                  className="px-4 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                  className="btn-secondary"
+                  style={{ padding: "8px 18px", fontSize: "0.85rem" }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors cursor-pointer"
+                  className="btn-primary"
+                  style={{ padding: "8px 20px", fontSize: "0.85rem" }}
                 >
-                  {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {submitting && <Loader2 size={14} className="animate-spin" />}
                   {editingSource ? "Save Changes" : "Add Source"}
                 </button>
               </div>

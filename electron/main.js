@@ -69,6 +69,9 @@ function waitForUrl(url, timeoutMs = 30000) {
  * secure 32-byte secret for NextAuth desktop sessions.
  */
 function getOrCreateDesktopSecret() {
+  if (process.env.AUTH_SECRET) {
+    return process.env.AUTH_SECRET;
+  }
   if (process.env.NEXTAUTH_SECRET) {
     return process.env.NEXTAUTH_SECRET;
   }
@@ -128,8 +131,12 @@ async function startProductionServer() {
   const { server, port } = await tryListen(3000);
   nextServer = server;
 
+  const desktopSecret = getOrCreateDesktopSecret();
   process.env.NEXTAUTH_URL = `http://localhost:${port}`;
-  process.env.NEXTAUTH_SECRET = getOrCreateDesktopSecret();
+  process.env.AUTH_URL = `http://localhost:${port}`;
+  process.env.NEXTAUTH_SECRET = desktopSecret;
+  process.env.AUTH_SECRET = desktopSecret;
+  process.env.AUTH_TRUST_HOST = "true";
 
   console.log(`[Media Locker] Production server active at http://127.0.0.1:${port}`);
   return `http://localhost:${port}`;

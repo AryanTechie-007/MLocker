@@ -144,40 +144,126 @@ export default function ManualSessionModal({
     return "Progress Reached";
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-gray-800 border border-gray-700 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col">
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        backgroundColor: "rgba(0, 0, 0, 0.78)",
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 100,
+        padding: "20px",
+      }}
+      onClick={onClose}
+    >
+      <div
+        className="glass-panel"
+        style={{
+          width: "100%",
+          maxWidth: "520px",
+          maxHeight: "90vh",
+          overflowY: "auto",
+          backgroundColor: "var(--bg-elevated)",
+          border: "1px solid var(--border-highlight)",
+          borderRadius: "var(--radius-lg)",
+          padding: "28px",
+          boxShadow: "var(--shadow-pop)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-gray-700/60 bg-gray-800/80">
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: "6px",
+          }}
+        >
           <div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-indigo-400" />
+            <h2
+              style={{
+                fontSize: "1.2rem",
+                fontWeight: 700,
+                color: "#fff",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              <Calendar size={18} style={{ color: "var(--accent-purple)" }} />
               Log Retroactive Session
             </h2>
-            <p className="text-xs text-gray-400 mt-0.5 truncate max-w-sm">
+            <p
+              style={{
+                fontSize: "0.82rem",
+                color: "var(--text-muted)",
+                marginTop: "2px",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                maxWidth: "380px",
+              }}
+            >
               {mediaTitle}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-700/60 transition-colors"
+            className="btn-icon"
+            style={{ width: "32px", height: "32px" }}
           >
-            <X className="w-5 h-5" />
+            <X size={16} />
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "16px" }}
+        >
           {error && (
-            <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
+            <div
+              style={{
+                padding: "10px 14px",
+                borderRadius: "var(--radius-sm)",
+                backgroundColor: "rgba(248, 113, 113, 0.15)",
+                border: "1px solid rgba(248, 113, 113, 0.3)",
+                color: "var(--status-dropped)",
+                fontSize: "0.85rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              <AlertCircle size={16} style={{ flexShrink: 0 }} />
               <span>{error}</span>
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+              gap: "12px",
+            }}
+          >
             <div>
-              <label className="block text-xs font-medium text-gray-300 mb-1">
+              <label
+                style={{
+                  fontSize: "0.82rem",
+                  fontWeight: 600,
+                  color: "var(--text-muted)",
+                  display: "block",
+                  marginBottom: "6px",
+                }}
+              >
                 Started At
               </label>
               <input
@@ -185,12 +271,21 @@ export default function ManualSessionModal({
                 value={startedAt}
                 onChange={(e) => setStartedAt(e.target.value)}
                 required
-                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="input-control"
+                style={{ fontSize: "0.85rem" }}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-300 mb-1">
+              <label
+                style={{
+                  fontSize: "0.82rem",
+                  fontWeight: 600,
+                  color: "var(--text-muted)",
+                  display: "block",
+                  marginBottom: "6px",
+                }}
+              >
                 Ended At
               </label>
               <input
@@ -198,17 +293,32 @@ export default function ManualSessionModal({
                 value={endedAt}
                 onChange={(e) => setEndedAt(e.target.value)}
                 required
-                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="input-control"
+                style={{ fontSize: "0.85rem" }}
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+              gap: "12px",
+            }}
+          >
             <div>
-              <label className="block text-xs font-medium text-gray-300 mb-1">
+              <label
+                style={{
+                  fontSize: "0.82rem",
+                  fontWeight: 600,
+                  color: "var(--text-muted)",
+                  display: "block",
+                  marginBottom: "6px",
+                }}
+              >
                 Observed Active Time (Minutes)
               </label>
-              <div className="relative">
+              <div style={{ position: "relative" }}>
                 <input
                   type="number"
                   min="1"
@@ -216,16 +326,34 @@ export default function ManualSessionModal({
                   value={activeMinutes}
                   onChange={(e) => setActiveMinutes(Number(e.target.value))}
                   required
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-3 pr-10 py-2 text-sm text-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="input-control"
+                  style={{ paddingRight: "40px", fontSize: "0.85rem" }}
                 />
-                <span className="absolute right-3 top-2.5 text-xs text-gray-400">
+                <span
+                  style={{
+                    position: "absolute",
+                    right: "12px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    fontSize: "0.78rem",
+                    color: "var(--text-dim)",
+                  }}
+                >
                   min
                 </span>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-300 mb-1">
+              <label
+                style={{
+                  fontSize: "0.82rem",
+                  fontWeight: 600,
+                  color: "var(--text-muted)",
+                  display: "block",
+                  marginBottom: "6px",
+                }}
+              >
                 {getProgressLabel()} (Optional)
               </label>
               <input
@@ -236,13 +364,22 @@ export default function ManualSessionModal({
                   setProgressEnd(e.target.value === "" ? "" : Number(e.target.value))
                 }
                 placeholder={currentProgress ? `Current: ${currentProgress}` : "e.g. 1"}
-                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="input-control"
+                style={{ fontSize: "0.85rem" }}
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-300 mb-1">
+            <label
+              style={{
+                fontSize: "0.82rem",
+                fontWeight: 600,
+                color: "var(--text-muted)",
+                display: "block",
+                marginBottom: "6px",
+              }}
+            >
               Session Notes & Review
             </label>
             <textarea
@@ -251,23 +388,35 @@ export default function ManualSessionModal({
               onChange={(e) => setNotes(e.target.value)}
               placeholder="What did you read, watch, or accomplish during this session?"
               maxLength={2000}
-              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+              className="input-control"
+              style={{ fontSize: "0.85rem", resize: "vertical" }}
             />
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-700/60">
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "flex-end",
+              gap: "10px",
+              paddingTop: "16px",
+              borderTop: "1px solid var(--border-subtle)",
+            }}
+          >
             <button
               type="button"
               onClick={onClose}
               disabled={submitting}
-              className="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm font-medium transition-colors"
+              className="btn-secondary"
+              style={{ padding: "8px 18px", fontSize: "0.85rem" }}
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors shadow-md disabled:opacity-50"
+              className="btn-primary"
+              style={{ padding: "8px 22px", fontSize: "0.85rem" }}
             >
               {submitting ? "Saving..." : "Save Session"}
             </button>

@@ -346,54 +346,170 @@ export default function ActiveSessionTracker({
   };
 
   return (
-    <div className="bg-gray-800/80 border border-gray-700/80 rounded-xl p-5 shadow-lg backdrop-blur-sm">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+    <div
+      className="glass-panel"
+      style={{
+        padding: "24px",
+        borderRadius: "var(--radius-lg)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: "16px",
+          marginBottom: "16px",
+        }}
+      >
         <div>
-          <div className="flex items-center gap-2">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <Clock className="w-5 h-5 text-indigo-400" />
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <h3
+              style={{
+                fontSize: "1.15rem",
+                fontWeight: 700,
+                color: "#fff",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              <Clock size={18} style={{ color: "var(--accent-purple)" }} />
               Observed Active Time Tracker
             </h3>
             {/* Status indicator pill */}
             {trackingState === "active" && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 animate-pulse">
-                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "3px 10px",
+                  borderRadius: "9999px",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  backgroundColor: "rgba(52, 211, 153, 0.15)",
+                  color: "var(--status-completed)",
+                  border: "1px solid rgba(52, 211, 153, 0.3)",
+                }}
+              >
+                <span
+                  style={{
+                    width: "7px",
+                    height: "7px",
+                    borderRadius: "50%",
+                    backgroundColor: "var(--status-completed)",
+                  }}
+                />
                 Tracking
               </span>
             )}
             {trackingState === "paused" && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "3px 10px",
+                  borderRadius: "9999px",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  backgroundColor: "rgba(251, 191, 36, 0.15)",
+                  color: "var(--status-on-hold)",
+                  border: "1px solid rgba(251, 191, 36, 0.3)",
+                }}
+              >
+                <span
+                  style={{
+                    width: "7px",
+                    height: "7px",
+                    borderRadius: "50%",
+                    backgroundColor: "var(--status-on-hold)",
+                  }}
+                />
                 Paused
               </span>
             )}
             {trackingState === "idle" && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-700 text-gray-300">
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "3px 10px",
+                  borderRadius: "9999px",
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  backgroundColor: "rgba(255, 255, 255, 0.05)",
+                  color: "var(--text-muted)",
+                  border: "1px solid var(--border-subtle)",
+                }}
+              >
                 Idle
               </span>
             )}
           </div>
-          <p className="text-xs text-gray-400 mt-1 flex items-center gap-1.5">
-            <HelpCircle className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+          <p
+            style={{
+              fontSize: "0.82rem",
+              color: "var(--text-muted)",
+              marginTop: "4px",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            <HelpCircle size={14} style={{ color: "var(--text-dim)", flexShrink: 0 }} />
             Observed active engagement measured while window is in focus. Not proof of watching.
           </p>
         </div>
 
         {/* Big Digital Timer Display */}
-        <div className="flex items-center gap-3">
-          <div className="text-right">
-            <div className="text-3xl font-mono font-bold text-white tracking-wider">
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div style={{ textAlign: "right" }}>
+            <div
+              style={{
+                fontSize: "2.2rem",
+                fontFamily: "var(--font-mono)",
+                fontWeight: 700,
+                color: "#fff",
+                letterSpacing: "0.05em",
+              }}
+            >
               {formatTime(elapsedSeconds)}
             </div>
             {trackingState === "active" && !isWindowFocused && (
-              <div className="text-xs text-amber-400 flex items-center justify-end gap-1 font-medium mt-0.5">
-                <EyeOff className="w-3 h-3" />
+              <div
+                style={{
+                  fontSize: "0.75rem",
+                  color: "var(--status-on-hold)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "flex-end",
+                  gap: "4px",
+                  fontWeight: 500,
+                  marginTop: "2px",
+                }}
+              >
+                <EyeOff size={13} />
                 Window unfocused (pulse paused)
               </div>
             )}
             {trackingState === "active" && isWindowFocused && (
-              <div className="text-xs text-emerald-400 flex items-center justify-end gap-1 font-medium mt-0.5">
-                <Eye className="w-3 h-3" />
+              <div
+                style={{
+                  fontSize: "0.75rem",
+                  color: "var(--status-completed)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "flex-end",
+                  gap: "4px",
+                  fontWeight: 500,
+                  marginTop: "2px",
+                }}
+              >
+                <Eye size={13} />
                 Active window focused
               </div>
             )}
@@ -402,14 +518,24 @@ export default function ActiveSessionTracker({
       </div>
 
       {/* Tracker Controls */}
-      <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-gray-700/60">
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: "10px",
+          paddingTop: "16px",
+          borderTop: "1px solid var(--border-subtle)",
+        }}
+      >
         {trackingState === "idle" && (
           <>
             {sources.length > 0 && (
               <select
                 value={selectedSourceId}
                 onChange={(e) => setSelectedSourceId(e.target.value)}
-                className="bg-gray-900 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                className="select-control"
+                style={{ maxWidth: "340px", padding: "8px 12px", fontSize: "0.85rem" }}
               >
                 <option value="">No external source (General session)</option>
                 {sources.map((s) => (
@@ -422,9 +548,10 @@ export default function ActiveSessionTracker({
             <button
               onClick={handleStart}
               disabled={isSubmitting}
-              className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition-colors shadow-md disabled:opacity-50"
+              className="btn-primary"
+              style={{ padding: "8px 20px", fontSize: "0.85rem" }}
             >
-              <Play className="w-4 h-4 fill-white" />
+              <Play size={14} fill="currentColor" />
               Start Session
             </button>
           </>
@@ -435,25 +562,44 @@ export default function ActiveSessionTracker({
             <button
               onClick={handlePause}
               disabled={isSubmitting}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-medium text-sm transition-colors shadow-md"
+              className="btn-secondary"
+              style={{
+                padding: "8px 18px",
+                fontSize: "0.85rem",
+                color: "var(--status-on-hold)",
+                borderColor: "rgba(251, 191, 36, 0.4)",
+              }}
             >
-              <Pause className="w-4 h-4 fill-white" />
+              <Pause size={14} fill="currentColor" />
               Pause
             </button>
             <button
               onClick={handleStop}
               disabled={isSubmitting}
-              className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm transition-colors shadow-md"
+              className="btn-secondary"
+              style={{
+                padding: "8px 18px",
+                fontSize: "0.85rem",
+                color: "var(--status-completed)",
+                borderColor: "rgba(52, 211, 153, 0.4)",
+              }}
             >
-              <Square className="w-4 h-4 fill-white" />
+              <Square size={14} fill="currentColor" />
               Stop & Save
             </button>
             <button
               onClick={handleDiscard}
               disabled={isSubmitting}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-700 hover:bg-rose-900/40 text-gray-300 hover:text-rose-300 text-sm transition-colors ml-auto"
+              className="btn-secondary"
+              style={{
+                padding: "8px 14px",
+                fontSize: "0.85rem",
+                color: "var(--status-dropped)",
+                borderColor: "rgba(248, 113, 113, 0.4)",
+                marginLeft: "auto",
+              }}
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 size={14} />
               Discard
             </button>
           </>
@@ -464,25 +610,39 @@ export default function ActiveSessionTracker({
             <button
               onClick={handleResume}
               disabled={isSubmitting}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition-colors shadow-md"
+              className="btn-primary"
+              style={{ padding: "8px 20px", fontSize: "0.85rem" }}
             >
-              <Play className="w-4 h-4 fill-white" />
+              <Play size={14} fill="currentColor" />
               Resume
             </button>
             <button
               onClick={handleStop}
               disabled={isSubmitting}
-              className="inline-flex items-center gap-2 px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm transition-colors shadow-md"
+              className="btn-secondary"
+              style={{
+                padding: "8px 18px",
+                fontSize: "0.85rem",
+                color: "var(--status-completed)",
+                borderColor: "rgba(52, 211, 153, 0.4)",
+              }}
             >
-              <Square className="w-4 h-4 fill-white" />
+              <Square size={14} fill="currentColor" />
               Stop & Save
             </button>
             <button
               onClick={handleDiscard}
               disabled={isSubmitting}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-700 hover:bg-rose-900/40 text-gray-300 hover:text-rose-300 text-sm transition-colors ml-auto"
+              className="btn-secondary"
+              style={{
+                padding: "8px 14px",
+                fontSize: "0.85rem",
+                color: "var(--status-dropped)",
+                borderColor: "rgba(248, 113, 113, 0.4)",
+                marginLeft: "auto",
+              }}
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 size={14} />
               Discard
             </button>
           </>

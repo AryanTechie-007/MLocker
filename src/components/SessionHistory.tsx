@@ -106,7 +106,19 @@ export default function SessionHistory({
   const getStatusBadge = (session: ActivitySessionItem) => {
     if (session.isManual) {
       return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/10 text-amber-300 border border-amber-500/30">
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "2px 8px",
+            borderRadius: "9999px",
+            fontSize: "0.72rem",
+            fontWeight: 600,
+            backgroundColor: "rgba(251, 191, 36, 0.15)",
+            color: "var(--status-on-hold)",
+            border: "1px solid rgba(251, 191, 36, 0.3)",
+          }}
+        >
           Manual Entry
         </span>
       );
@@ -115,32 +127,92 @@ export default function SessionHistory({
     switch (session.status) {
       case "active":
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "2px 8px",
+              borderRadius: "9999px",
+              fontSize: "0.72rem",
+              fontWeight: 600,
+              backgroundColor: "rgba(52, 211, 153, 0.15)",
+              color: "var(--status-completed)",
+              border: "1px solid rgba(52, 211, 153, 0.3)",
+            }}
+          >
             Active Now
           </span>
         );
       case "paused":
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-500/10 text-amber-300 border border-amber-500/30">
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "2px 8px",
+              borderRadius: "9999px",
+              fontSize: "0.72rem",
+              fontWeight: 600,
+              backgroundColor: "rgba(251, 191, 36, 0.15)",
+              color: "var(--status-on-hold)",
+              border: "1px solid rgba(251, 191, 36, 0.3)",
+            }}
+          >
             Paused
           </span>
         );
       case "recovered":
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-500/10 text-purple-300 border border-purple-500/30">
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "2px 8px",
+              borderRadius: "9999px",
+              fontSize: "0.72rem",
+              fontWeight: 600,
+              backgroundColor: "rgba(139, 92, 246, 0.15)",
+              color: "var(--accent-purple)",
+              border: "1px solid rgba(139, 92, 246, 0.3)",
+            }}
+          >
             Crash Recovered
           </span>
         );
       case "abandoned":
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-rose-500/10 text-rose-300 border border-rose-500/30">
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "2px 8px",
+              borderRadius: "9999px",
+              fontSize: "0.72rem",
+              fontWeight: 600,
+              backgroundColor: "rgba(248, 113, 113, 0.15)",
+              color: "var(--status-dropped)",
+              border: "1px solid rgba(248, 113, 113, 0.3)",
+            }}
+          >
             Discarded
           </span>
         );
       case "completed":
       default:
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-500/10 text-indigo-300 border border-indigo-500/30">
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "2px 8px",
+              borderRadius: "9999px",
+              fontSize: "0.72rem",
+              fontWeight: 600,
+              backgroundColor: "rgba(6, 182, 212, 0.15)",
+              color: "var(--accent-cyan)",
+              border: "1px solid rgba(6, 182, 212, 0.3)",
+            }}
+          >
             Completed
           </span>
         );
@@ -229,97 +301,220 @@ export default function SessionHistory({
   const totalActiveSeconds = sessions.reduce((acc, s) => acc + s.activeSeconds, 0);
 
   return (
-    <div className="bg-gray-800/80 border border-gray-700/80 rounded-xl p-5 shadow-lg backdrop-blur-sm">
+    <div
+      className="glass-panel"
+      style={{
+        padding: "24px",
+        borderRadius: "var(--radius-lg)",
+      }}
+    >
       {/* Header and stats */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-700/60">
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: "16px",
+          paddingBottom: "16px",
+          borderBottom: "1px solid var(--border-subtle)",
+        }}
+      >
         <div>
-          <h3 className="text-lg font-bold text-white flex items-center gap-2">
-            <History className="w-5 h-5 text-indigo-400" />
+          <h3
+            style={{
+              fontSize: "1.15rem",
+              fontWeight: 700,
+              color: "#fff",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <History size={18} style={{ color: "var(--accent-purple)" }} />
             Activity History & Sessions
           </h3>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: "2px" }}>
             Historical active window sessions and retroactive logs.
           </p>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="bg-gray-900/80 px-3 py-1.5 rounded-lg border border-gray-700/50 text-right">
-            <div className="text-xs text-gray-400 font-medium">Total Observed Time</div>
-            <div className="text-sm font-bold text-indigo-300 font-mono">
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+          <div
+            style={{
+              backgroundColor: "var(--bg-elevated)",
+              padding: "6px 14px",
+              borderRadius: "var(--radius-sm)",
+              border: "1px solid var(--border-subtle)",
+              textAlign: "right",
+            }}
+          >
+            <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 500 }}>
+              Total Observed Time
+            </div>
+            <div
+              style={{
+                fontSize: "0.95rem",
+                fontWeight: 700,
+                color: "var(--accent-purple)",
+                fontFamily: "var(--font-mono)",
+              }}
+            >
               {formatDuration(totalActiveSeconds)}
             </div>
           </div>
-          <div className="bg-gray-900/80 px-3 py-1.5 rounded-lg border border-gray-700/50 text-right">
-            <div className="text-xs text-gray-400 font-medium">Total Sessions</div>
-            <div className="text-sm font-bold text-indigo-300 font-mono">{totalCount}</div>
+          <div
+            style={{
+              backgroundColor: "var(--bg-elevated)",
+              padding: "6px 14px",
+              borderRadius: "var(--radius-sm)",
+              border: "1px solid var(--border-subtle)",
+              textAlign: "right",
+            }}
+          >
+            <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 500 }}>
+              Total Sessions
+            </div>
+            <div
+              style={{
+                fontSize: "0.95rem",
+                fontWeight: 700,
+                color: "var(--accent-cyan)",
+                fontFamily: "var(--font-mono)",
+              }}
+            >
+              {totalCount}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Sessions Timeline List */}
-      <div className="mt-4">
+      <div style={{ marginTop: "16px" }}>
         {loading && (
-          <div className="flex items-center justify-center py-10 text-gray-400">
-            <Loader2 className="w-6 h-6 animate-spin text-indigo-400 mr-2" />
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "40px 0",
+              color: "var(--text-muted)",
+              fontSize: "0.9rem",
+            }}
+          >
+            <Loader2 size={20} className="animate-spin" style={{ marginRight: "8px", color: "var(--accent-purple)" }} />
             Loading session history...
           </div>
         )}
 
         {!loading && sessions.length === 0 && (
-          <div className="text-center py-10 text-gray-400">
-            <Clock className="w-10 h-10 mx-auto text-gray-500 mb-2 opacity-60" />
-            <p className="text-sm font-medium">No recorded sessions yet</p>
-            <p className="text-xs text-gray-500 mt-1">
+          <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text-muted)" }}>
+            <Clock size={36} style={{ margin: "0 auto 10px", color: "var(--text-dim)", opacity: 0.5 }} />
+            <p style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-muted)" }}>
+              No recorded sessions yet
+            </p>
+            <p style={{ fontSize: "0.8rem", color: "var(--text-dim)", marginTop: "4px" }}>
               Start an active tracking session or log a manual entry above.
             </p>
           </div>
         )}
 
         {!loading && sessions.length > 0 && (
-          <div className="space-y-3">
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {sessions.map((s) => (
               <div
                 key={s.id}
-                className="bg-gray-900/60 border border-gray-700/50 rounded-xl p-4 hover:border-gray-600 transition-colors"
+                className="glass-panel"
+                style={{
+                  backgroundColor: "var(--bg-elevated)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "14px 18px",
+                  transition: "border-color 0.2s",
+                }}
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-wrap">
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: "8px",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                     {getStatusBadge(s)}
-                    <span className="text-sm font-bold font-mono text-white">
+                    <span
+                      style={{
+                        fontSize: "0.9rem",
+                        fontWeight: 700,
+                        fontFamily: "var(--font-mono)",
+                        color: "#fff",
+                      }}
+                    >
                       {formatDuration(s.activeSeconds)}
                     </span>
                     {s.closeReason && (
-                      <span className="text-xs text-gray-400 bg-gray-800 px-2 py-0.5 rounded">
+                      <span
+                        style={{
+                          fontSize: "0.72rem",
+                          color: "var(--text-dim)",
+                          backgroundColor: "rgba(255, 255, 255, 0.04)",
+                          border: "1px solid var(--border-subtle)",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                        }}
+                      >
                         {getReasonLabel(s.closeReason)}
                       </span>
                     )}
                     {s.progressEnd !== null && s.progressEnd !== undefined && (
-                      <span className="text-xs text-indigo-300 bg-indigo-950/60 border border-indigo-800/40 px-2 py-0.5 rounded">
+                      <span
+                        style={{
+                          fontSize: "0.72rem",
+                          color: "var(--accent-purple)",
+                          backgroundColor: "rgba(139, 92, 246, 0.12)",
+                          border: "1px solid rgba(139, 92, 246, 0.3)",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          fontWeight: 600,
+                        }}
+                      >
                         Progress: #{s.progressEnd}
                       </span>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-3 text-xs text-gray-400">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5" />
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      fontSize: "0.8rem",
+                      color: "var(--text-dim)",
+                    }}
+                  >
+                    <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                      <Calendar size={13} />
                       {formatDate(s.startedAt)}
                     </span>
 
-                    <div className="flex items-center gap-1 ml-2">
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px", marginLeft: "8px" }}>
                       <button
                         onClick={() => handleStartEdit(s)}
                         title="Edit session notes"
-                        className="p-1 hover:text-white rounded hover:bg-gray-800 transition-colors"
+                        className="btn-icon"
+                        style={{ width: "28px", height: "28px" }}
                       >
-                        <Edit2 className="w-3.5 h-3.5" />
+                        <Edit2 size={13} />
                       </button>
                       <button
                         onClick={() => setSessionToDelete(s)}
                         title="Delete session"
-                        className="p-1 hover:text-rose-400 rounded hover:bg-gray-800 transition-colors"
+                        className="btn-icon"
+                        style={{ width: "28px", height: "28px", color: "var(--status-dropped)" }}
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   </div>
@@ -327,26 +522,38 @@ export default function SessionHistory({
 
                 {/* Notes editing or display */}
                 {editingSessionId === s.id ? (
-                  <div className="mt-3 pt-3 border-t border-gray-700/40 flex flex-col gap-2">
+                  <div
+                    style={{
+                      marginTop: "12px",
+                      paddingTop: "12px",
+                      borderTop: "1px solid var(--border-subtle)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                    }}
+                  >
                     <textarea
                       value={editingNotes}
                       onChange={(e) => setEditingNotes(e.target.value)}
                       placeholder="Add notes or review for this session..."
                       rows={2}
-                      className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-xs text-gray-200 outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="input-control"
+                      style={{ fontSize: "0.85rem", resize: "vertical" }}
                     />
-                    <div className="flex items-center justify-end gap-2">
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "8px" }}>
                       <button
                         onClick={() => setEditingSessionId(null)}
                         disabled={savingEdit}
-                        className="px-2.5 py-1 text-xs text-gray-400 hover:text-white"
+                        className="btn-secondary"
+                        style={{ padding: "4px 12px", fontSize: "0.78rem" }}
                       >
                         Cancel
                       </button>
                       <button
                         onClick={() => handleSaveEdit(s.id)}
                         disabled={savingEdit}
-                        className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-medium"
+                        className="btn-primary"
+                        style={{ padding: "4px 14px", fontSize: "0.78rem" }}
                       >
                         {savingEdit ? "Saving..." : "Save Notes"}
                       </button>
@@ -354,8 +561,20 @@ export default function SessionHistory({
                   </div>
                 ) : (
                   s.notes && (
-                    <div className="mt-2.5 pt-2 border-t border-gray-800/80 text-xs text-gray-300 italic flex items-start gap-1.5">
-                      <FileText className="w-3.5 h-3.5 text-gray-500 shrink-0 mt-0.5" />
+                    <div
+                      style={{
+                        marginTop: "10px",
+                        paddingTop: "8px",
+                        borderTop: "1px solid var(--border-subtle)",
+                        fontSize: "0.8rem",
+                        color: "var(--text-muted)",
+                        fontStyle: "italic",
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: "6px",
+                      }}
+                    >
+                      <FileText size={13} style={{ color: "var(--text-dim)", flexShrink: 0, marginTop: "2px" }} />
                       <span>&ldquo;{s.notes}&rdquo;</span>
                     </div>
                   )
