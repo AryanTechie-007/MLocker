@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { X, Calendar, AlertCircle } from "lucide-react";
 import { useToast } from "@/components/Toast";
+import { apiFetch, getErrorMessage } from "@/lib/api-client";
 
 interface Props {
   isOpen: boolean;
@@ -106,10 +107,9 @@ export default function ManualSessionModal({
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/sessions", {
+      await apiFetch("/api/sessions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: {
           userMediaId,
           sourceType: "manual",
           startedAt: startDate.toISOString(),
@@ -118,20 +118,15 @@ export default function ManualSessionModal({
           notes: notes.trim() || null,
           progressStart: currentProgress || null,
           progressEnd: progressEnd === "" ? null : Number(progressEnd),
-        }),
+        },
       });
-
-      if (!res.ok) {
-        const err = await res.json();
-        setError(err.error || "Failed to record manual session");
-        return;
-      }
 
       showToast("Manual session recorded successfully", "success");
       onSessionCreated();
       onClose();
-    } catch {
-      setError("Network error while recording session");
+    } catch (err) {
+      console.error("Record manual session error:", err);
+      setError(getErrorMessage(err, "Failed to record manual session"));
     } finally {
       setSubmitting(false);
     }

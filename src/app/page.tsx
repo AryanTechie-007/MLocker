@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   Film,
@@ -19,81 +19,52 @@ import EditMediaModal from "@/components/EditMediaModal";
 import { useToast } from "@/components/Toast";
 import { StatCardSkeleton, MediaCardSkeleton } from "@/components/Skeleton";
 import { UserMediaItem, StatsResponse } from "@/lib/types";
+import { apiFetch, getErrorMessage } from "@/lib/api-client";
+import { useApi } from "@/lib/use-api";
+
+interface DashboardData {
+  stats: StatsResponse | null;
+  inProgressItems: UserMediaItem[];
+  recentItems: UserMediaItem[];
+}
 
 export default function Dashboard() {
   const { showToast } = useToast();
-  const [stats, setStats] = useState<StatsResponse | null>(null);
-  const [inProgressItems, setInProgressItems] = useState<UserMediaItem[]>([]);
-  const [recentItems, setRecentItems] = useState<UserMediaItem[]>([]);
-  const [loading, setLoading] = useState(true);
 
   // Modal controls
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedEditItem, setSelectedEditItem] = useState<UserMediaItem | null>(null);
 
-  const fetchData = useCallback(async () => {
-    try {
-      const [statsRes, inProgressRes, recentRes] = await Promise.all([
-        fetch("/api/stats"),
-        fetch("/api/media?status=in_progress"),
-        fetch("/api/media?limit=6&sortBy=updatedAt"),
+  const {
+    data,
+    loading,
+    refetch: fetchData,
+  } = useApi<DashboardData>(
+    async (signal) => {
+      const [statsData, inProgressData, recentData] = await Promise.all([
+        apiFetch<{ stats: StatsResponse }>("/api/stats", { signal }),
+        apiFetch<{ items: UserMediaItem[] }>("/api/media?status=in_progress", { signal }),
+        apiFetch<{ items: UserMediaItem[] }>("/api/media?limit=6&sortBy=updatedAt", { signal }),
       ]);
 
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        setStats(statsData.stats);
-      }
-
-      if (inProgressRes.ok) {
-        const inProgressData = await inProgressRes.json();
-        setInProgressItems(inProgressData.items || []);
-      }
-
-      if (recentRes.ok) {
-        const recentData = await recentRes.json();
-        setRecentItems(recentData.items || []);
-      }
-    } catch (err) {
-      console.error("Dashboard fetch error:", err);
-      showToast("Failed to refresh dashboard data", "error");
-    } finally {
-      setLoading(false);
+      return {
+        stats: statsData.stats,
+        inProgressItems: inProgressData.items || [],
+        recentItems: recentData.items || [],
+      };
+    },
+    [],
+    {
+      onError: (err) => {
+        console.error("Dashboard fetch error:", err);
+        showToast(getErrorMessage(err, "Failed to refresh dashboard data"), "error");
+      },
     }
-  }, [showToast]);
+  );
 
-  useEffect(() => {
-    let ignore = false;
-    Promise.all([
-      fetch("/api/stats"),
-      fetch("/api/media?status=in_progress"),
-      fetch("/api/media?limit=6&sortBy=updatedAt"),
-    ])
-      .then(async ([statsRes, inProgressRes, recentRes]) => {
-        if (ignore) return;
-        if (statsRes.ok) {
-          const statsData = await statsRes.json();
-          setStats(statsData.stats);
-        }
-        if (inProgressRes.ok) {
-          const inProgressData = await inProgressRes.json();
-          setInProgressItems(inProgressData.items || []);
-        }
-        if (recentRes.ok) {
-          const recentData = await recentRes.json();
-          setRecentItems(recentData.items || []);
-        }
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (!ignore) {
-          console.error("Dashboard fetch error:", err);
-          setLoading(false);
-        }
-      });
-    return () => {
-      ignore = true;
-    };
-  }, []);
+  const stats = data?.stats ?? null;
+  const inProgressItems = data?.inProgressItems ?? [];
+  const recentItems = data?.recentItems ?? [];
 
   const handleIncrementProgress = async (item: UserMediaItem) => {
     const update: Partial<UserMediaItem> = {};
@@ -124,20 +95,15 @@ export default function Dashboard() {
     }
 
     try {
-      const res = await fetch(`/api/media/${item.id}`, {
+      await apiFetch(`/api/media/${item.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(update),
+        body: update,
       });
-      if (res.ok) {
-        showToast(message, "success");
-        fetchData();
-      } else {
-        showToast("Failed to update progress", "error");
-      }
+      showToast(message, "success");
+      fetchData();
     } catch (err) {
-      console.error(err);
-      showToast("Network error while updating progress", "error");
+      console.error("Quick log error:", err);
+      showToast(getErrorMessage(err, "Failed to update progress"), "error");
     }
   };
 

@@ -24,7 +24,7 @@ export async function POST(req: Request) {
       return unauthorizedResponse();
     }
 
-    const rawBody = await req.json();
+    const rawBody = await req.json().catch(() => null);
     const parseResult = HeartbeatPayloadSchema.safeParse(rawBody);
     if (!parseResult.success) {
       return validationErrorResponse(parseResult.error);
@@ -205,8 +205,7 @@ export async function POST(req: Request) {
       { status: 200 }
     );
   } catch (error) {
-    return internalErrorResponse(
-      error instanceof Error ? error.message : "Failed to process heartbeat"
-    );
+    console.error("POST /api/sessions/heartbeat error:", error);
+    return internalErrorResponse("Failed to process heartbeat");
   }
 }

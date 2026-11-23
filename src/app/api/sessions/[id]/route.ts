@@ -42,9 +42,8 @@ export async function GET(
 
     return NextResponse.json({ session });
   } catch (error) {
-    return internalErrorResponse(
-      error instanceof Error ? error.message : "Failed to fetch session"
-    );
+    console.error("GET /api/sessions/[id] error:", error);
+    return internalErrorResponse("Failed to fetch session");
   }
 }
 
@@ -68,7 +67,7 @@ export async function PATCH(
       return unauthorizedResponse();
     }
 
-    const rawBody = await req.json();
+    const rawBody = await req.json().catch(() => null);
     const parseResult = UpdateSessionSchema.safeParse(rawBody);
     if (!parseResult.success) {
       return validationErrorResponse(parseResult.error);
@@ -99,9 +98,8 @@ export async function PATCH(
 
     return NextResponse.json({ session });
   } catch (error) {
-    return internalErrorResponse(
-      error instanceof Error ? error.message : "Failed to update session"
-    );
+    console.error("PATCH /api/sessions/[id] error:", error);
+    return internalErrorResponse("Failed to update session");
   }
 }
 
@@ -140,8 +138,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    return internalErrorResponse(
-      error instanceof Error ? error.message : "Failed to delete session"
-    );
+    console.error("DELETE /api/sessions/[id] error:", error);
+    return internalErrorResponse("Failed to delete session");
   }
 }

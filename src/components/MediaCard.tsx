@@ -8,6 +8,7 @@ import { useState } from "react";
 import { useToast } from "./Toast";
 import WatchProviderBadge from "./WatchProviderBadge";
 import { UserMediaItem, WatchProvider } from "@/lib/types";
+import { apiFetch, getErrorMessage } from "@/lib/api-client";
 
 interface MediaCardProps {
   item: UserMediaItem;
@@ -70,22 +71,18 @@ export default function MediaCard({ item, onEdit, onToggleFavorite }: MediaCardP
       onToggleFavorite(item.id, !favorite);
     } else {
       try {
-        const res = await fetch(`/api/media/${item.id}`, {
+        await apiFetch(`/api/media/${item.id}`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ isFavorite: nextVal }),
+          body: { isFavorite: nextVal },
         });
-        if (res.ok) {
-          showToast(
-            nextVal ? `Added "${item.title}" to favorites` : `Removed "${item.title}" from favorites`,
-            "info"
-          );
-        } else {
-          setFavorite(!nextVal);
-        }
+        showToast(
+          nextVal ? `Added "${item.title}" to favorites` : `Removed "${item.title}" from favorites`,
+          "info"
+        );
       } catch (err) {
-        console.error(err);
+        console.error("Toggle favorite in card error:", err);
         setFavorite(!nextVal);
+        showToast(getErrorMessage(err, "Failed to update favorite status"), "error");
       }
     }
   };

@@ -1,13 +1,20 @@
 import { NextResponse } from "next/server";
 import { searchMedia } from "@/lib/api/unified-search";
 import { SearchQuerySchema } from "@/lib/domain/validation";
+import { getUserId } from "@/lib/get-user";
 import {
+  unauthorizedResponse,
   validationErrorResponse,
   internalErrorResponse,
 } from "@/lib/api-response";
 
 export async function GET(req: Request) {
   try {
+    const userId = await getUserId();
+    if (!userId) {
+      return unauthorizedResponse();
+    }
+
     const { searchParams } = new URL(req.url);
     const query = searchParams.get("q") || "";
     const type = searchParams.get("type") || "all";

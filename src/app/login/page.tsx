@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Layers, Lock, Mail, User as UserIcon, ArrowRight } from "lucide-react";
+import { apiFetch, getErrorMessage } from "@/lib/api-client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,18 +23,11 @@ export default function LoginPage() {
     try {
       if (isRegister) {
         // Register API call
-        const regRes = await fetch("/api/auth/register", {
+        await apiFetch("/api/auth/register", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, email, password }),
+          body: { name, email, password },
+          skipAuthRedirect: true,
         });
-
-        const data = await regRes.json();
-        if (!regRes.ok) {
-          setError(data.error || "Failed to register account");
-          setLoading(false);
-          return;
-        }
 
         // Automatic sign in after successful registration
         const res = await signIn("credentials", {
@@ -64,8 +58,8 @@ export default function LoginPage() {
         }
       }
     } catch (err) {
-      console.error(err);
-      setError("An unexpected network error occurred");
+      console.error("Login/Register error:", err);
+      setError(getErrorMessage(err, "An unexpected error occurred"));
     } finally {
       setLoading(false);
     }

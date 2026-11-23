@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Layers,
@@ -25,15 +25,14 @@ import EditMediaModal from "@/components/EditMediaModal";
 import AddMediaModal from "@/components/AddMediaModal";
 import { MediaCardSkeleton, TableRowSkeleton } from "@/components/Skeleton";
 import { UserMediaItem } from "@/lib/types";
+import { apiFetch } from "@/lib/api-client";
+import { useApi } from "@/lib/use-api";
 
 function LibraryContent() {
   const searchParams = useSearchParams();
   const rawType = searchParams.get("type") || "all";
   const initialType = rawType === "book" ? "novel" : rawType;
   const initialStatus = searchParams.get("status") || "all";
-
-  const [items, setItems] = useState<UserMediaItem[]>([]);
-  const [loading, setLoading] = useState(true);
 
   // Filters & Controls
   const [activeType, setActiveType] = useState<string>(initialType);
@@ -47,40 +46,25 @@ function LibraryContent() {
   const [selectedEditItem, setSelectedEditItem] = useState<UserMediaItem | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  const fetchItems = useCallback(async () => {
-    try {
-      const res = await fetch("/api/media");
-      if (res.ok) {
-        const data = await res.json();
-        setItems(data.items || []);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+  const {
+    data: itemsData,
+    loading,
+    refetch: fetchItems,
+  } = useApi<UserMediaItem[]>(
+    async (signal) => {
+      const data = await apiFetch<{ items: UserMediaItem[] }>("/api/media", { signal });
+      return data.items || [];
+    },
+    [],
+    {
+      initialData: [],
+      onError: (err) => {
+        console.error("Fetch library items error:", err);
+      },
     }
-  }, []);
+  );
 
-  useEffect(() => {
-    let ignore = false;
-    fetch("/api/media")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!ignore) {
-          setItems(data.items || []);
-          setLoading(false);
-        }
-      })
-      .catch((err) => {
-        if (!ignore) {
-          console.error(err);
-          setLoading(false);
-        }
-      });
-    return () => {
-      ignore = true;
-    };
-  }, []);
+  const items = itemsData || [];
 
   // Filter & Sort Logic
   const filteredItems = items.filter((item) => {

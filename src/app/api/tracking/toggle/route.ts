@@ -48,9 +48,8 @@ export async function GET() {
       });
     }
   } catch (error) {
-    return internalErrorResponse(
-      error instanceof Error ? error.message : "Failed to fetch preferences"
-    );
+    console.error("GET /api/tracking/toggle error:", error);
+    return internalErrorResponse("Failed to fetch preferences");
   }
 }
 
@@ -65,7 +64,7 @@ export async function POST(req: Request) {
       return unauthorizedResponse();
     }
 
-    const rawBody = await req.json();
+    const rawBody = await req.json().catch(() => null);
     const parseResult = TrackingToggleSchema.safeParse(rawBody);
     if (!parseResult.success) {
       return validationErrorResponse(parseResult.error);
@@ -107,8 +106,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ trackingPreferences: validated });
   } catch (error) {
-    return internalErrorResponse(
-      error instanceof Error ? error.message : "Failed to update preferences"
-    );
+    console.error("POST /api/tracking/toggle error:", error);
+    return internalErrorResponse("Failed to update preferences");
   }
 }

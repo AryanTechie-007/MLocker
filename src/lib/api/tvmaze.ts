@@ -28,7 +28,7 @@ export async function searchTV(query: string): Promise<MediaSearchResult[]> {
   try {
     const res = await fetch(
       `https://api.tvmaze.com/search/shows?q=${encodeURIComponent(query)}`,
-      { next: { revalidate: 3600 } }
+      { next: { revalidate: 3600 }, signal: AbortSignal.timeout(8000) }
     );
     if (!res.ok) return [];
     const items: TVMazeShowItem[] = await res.json();

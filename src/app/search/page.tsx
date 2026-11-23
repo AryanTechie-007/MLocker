@@ -18,6 +18,7 @@ import {
 import AddMediaModal from "@/components/AddMediaModal";
 import WatchProviderBadge from "@/components/WatchProviderBadge";
 import { MediaSearchResult, MediaType } from "@/lib/api/types";
+import { apiFetch } from "@/lib/api-client";
 
 export default function SearchPage() {
   const [query, setQuery] = useState("");
@@ -50,15 +51,12 @@ export default function SearchPage() {
     setLoading(true);
     setHasSearched(true);
     try {
-      const res = await fetch(
+      const data = await apiFetch<{ results: MediaSearchResult[] }>(
         `/api/search?q=${encodeURIComponent(searchQuery.trim())}&type=${searchType}`
       );
-      if (res.ok) {
-        const data = await res.json();
-        setResults(data.results || []);
-      }
+      setResults(data.results || []);
     } catch (err) {
-      console.error(err);
+      console.error("Search error:", err);
     } finally {
       setLoading(false);
     }

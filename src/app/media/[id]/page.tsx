@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, use } from "react";
+import { useState, use } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -23,6 +23,8 @@ import { Skeleton } from "@/components/Skeleton";
 import { getQuickSearchProviders } from "@/components/WatchProviderBadge";
 import { UserMediaItem, Collection } from "@/lib/types";
 import { PlusCircle } from "lucide-react";
+import { apiFetch, getErrorMessage } from "@/lib/api-client";
+import { useApi } from "@/lib/use-api";
 
 export default function MediaDetailPage({
   params,
@@ -35,7 +37,6 @@ export default function MediaDetailPage({
 
   const [item, setItem] = useState<UserMediaItem | null>(null);
   const [collections, setCollections] = useState<Collection[]>([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -113,18 +114,18 @@ export default function MediaDetailPage({
     }
 
     try {
-      await fetch(`/api/media/${id}`, {
+      await apiFetch(`/api/media/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: {
           watchedEpisodes: updatedWatched,
           readChapters: updatedRead,
           hoursPlayed: updatedHours,
-        }),
+        },
       });
       showToast("Media progress updated successfully", "success");
-    } catch {
-      showToast("Failed to save progress update", "error");
+    } catch (err) {
+      console.error("Progress save error:", err);
+      showToast(getErrorMessage(err, "Failed to save progress update"), "error");
     } finally {
       setIsProgressPromptOpen(false);
       setCompletedSessionPrompt(null);
@@ -132,15 +133,23 @@ export default function MediaDetailPage({
   };
 
   // Fetch Media Details & Collections
-  const fetchData = useCallback(async () => {
-    try {
-      const [mediaRes, collectionsRes] = await Promise.all([
-        fetch(`/api/media/${id}`),
-        fetch("/api/collections"),
+  const {
+    loading,
+    refetch: fetchData,
+  } = useApi<{ item: UserMediaItem; collections: Collection[] }>(
+    async (signal) => {
+      const [mediaData, collectionsData] = await Promise.all([
+        apiFetch<{ item: UserMediaItem }>(`/api/media/${id}`, { signal }),
+        apiFetch<{ collections: Collection[] }>("/api/collections", { signal }),
       ]);
-
-      if (mediaRes.ok) {
-        const data = await mediaRes.json();
+      return {
+        item: mediaData.item,
+        collections: collectionsData.collections || [],
+      };
+    },
+    [id],
+    {
+      onSuccess: (data) => {
         const m = data.item;
         setItem(m);
         setStatus(m.status);
@@ -152,62 +161,20 @@ export default function MediaDetailPage({
         setReadChapters(m.readChapters || 0);
         setTotalChapters(m.totalChapters || null);
         setHoursPlayed(m.hoursPlayed || 0);
-      }
-
-      if (collectionsRes.ok) {
-        const collData = await collectionsRes.json();
-        setCollections(collData.collections || []);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+        setCollections(data.collections);
+      },
+      onError: (err) => {
+        console.error("Fetch media details error:", err);
+      },
     }
-  }, [id]);
-
-  useEffect(() => {
-    let ignore = false;
-    Promise.all([fetch(`/api/media/${id}`), fetch("/api/collections")])
-      .then(async ([mediaRes, collectionsRes]) => {
-        if (ignore) return;
-        if (mediaRes.ok) {
-          const data = await mediaRes.json();
-          const m = data.item;
-          setItem(m);
-          setStatus(m.status);
-          setRating(m.rating !== null && m.rating !== undefined ? m.rating : "");
-          setReview(m.review || "");
-          setIsFavorite(Boolean(m.isFavorite));
-          setWatchedEpisodes(m.watchedEpisodes || 0);
-          setTotalEpisodes(m.totalEpisodes || null);
-          setReadChapters(m.readChapters || 0);
-          setTotalChapters(m.totalChapters || null);
-          setHoursPlayed(m.hoursPlayed || 0);
-        }
-        if (collectionsRes.ok) {
-          const collData = await collectionsRes.json();
-          setCollections(collData.collections || []);
-        }
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (!ignore) {
-          console.error(err);
-          setLoading(false);
-        }
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [id]);
+  );
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`/api/media/${id}`, {
+      const data = await apiFetch<{ item: UserMediaItem }>(`/api/media/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: {
           status,
           rating: rating !== "" ? Number(rating) : null,
           review: review.trim() || null,
@@ -217,18 +184,13 @@ export default function MediaDetailPage({
           readChapters,
           totalChapters,
           hoursPlayed,
-        }),
+        },
       });
-      if (res.ok) {
-        const data = await res.json();
-        setItem(data.item);
-        showToast("Saved all changes successfully!", "success");
-      } else {
-        showToast("Failed to save changes", "error");
-      }
+      setItem(data.item);
+      showToast("Saved all changes successfully!", "success");
     } catch (err) {
-      console.error(err);
-      showToast("Network error while saving", "error");
+      console.error("Save media error:", err);
+      showToast(getErrorMessage(err, "Failed to save changes"), "error");
     } finally {
       setSaving(false);
     }
@@ -238,42 +200,31 @@ export default function MediaDetailPage({
     const nextFavorite = !isFavorite;
     setIsFavorite(nextFavorite);
     try {
-      const res = await fetch(`/api/media/${id}`, {
+      const data = await apiFetch<{ item: UserMediaItem }>(`/api/media/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isFavorite: nextFavorite }),
+        body: { isFavorite: nextFavorite },
       });
-      if (res.ok) {
-        const data = await res.json();
-        setItem(data.item);
-        showToast(
-          nextFavorite ? "Added to favorites" : "Removed from favorites",
-          "info"
-        );
-      } else {
-        setIsFavorite(!nextFavorite);
-        showToast("Failed to update favorite status", "error");
-      }
+      setItem(data.item);
+      showToast(
+        nextFavorite ? "Added to favorites" : "Removed from favorites",
+        "info"
+      );
     } catch (err) {
-      console.error(err);
+      console.error("Toggle favorite error:", err);
       setIsFavorite(!nextFavorite);
-      showToast("Network error", "error");
+      showToast(getErrorMessage(err, "Failed to update favorite status"), "error");
     }
   };
 
   const executeDelete = async () => {
     setDeleting(true);
     try {
-      const res = await fetch(`/api/media/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        showToast(`Removed "${item?.title}" from your library`, "info");
-        router.push("/library");
-      } else {
-        showToast("Failed to remove media item", "error");
-      }
+      await apiFetch(`/api/media/${id}`, { method: "DELETE" });
+      showToast(`Removed "${item?.title}" from your library`, "info");
+      router.push("/library");
     } catch (err) {
-      console.error(err);
-      showToast("Network error while deleting", "error");
+      console.error("Delete media error:", err);
+      showToast(getErrorMessage(err, "Failed to remove media item"), "error");
     } finally {
       setDeleting(false);
       setIsConfirmOpen(false);
@@ -282,26 +233,21 @@ export default function MediaDetailPage({
 
   const handleToggleCollection = async (collectionId: string, isInCollection: boolean) => {
     try {
-      const res = await fetch(`/api/collections/${collectionId}`, {
+      await apiFetch(`/api/collections/${collectionId}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: {
           userMediaId: id,
           action: isInCollection ? "remove" : "add",
-        }),
+        },
       });
-      if (res.ok) {
-        showToast(
-          isInCollection ? "Removed from collection" : "Added to collection",
-          "success"
-        );
-        fetchData();
-      } else {
-        showToast("Failed to update collection", "error");
-      }
+      showToast(
+        isInCollection ? "Removed from collection" : "Added to collection",
+        "success"
+      );
+      fetchData();
     } catch (err) {
-      console.error(err);
-      showToast("Network error updating collection", "error");
+      console.error("Toggle collection error:", err);
+      showToast(getErrorMessage(err, "Failed to update collection"), "error");
     }
   };
 

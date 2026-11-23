@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useToast } from "@/components/Toast";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { UserMediaItem } from "@/lib/types";
+import { apiFetch, getErrorMessage } from "@/lib/api-client";
 
 interface EditMediaModalProps {
   item: UserMediaItem | null;
@@ -91,22 +92,17 @@ export default function EditMediaModal({
       if (readChapters !== "") payload.readChapters = parseInt(readChapters, 10);
       if (hoursPlayed !== "") payload.hoursPlayed = parseFloat(hoursPlayed);
 
-      const res = await fetch(`/api/media/${item.id}`, {
+      await apiFetch(`/api/media/${item.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: payload,
       });
 
-      if (res.ok) {
-        showToast(`Updated "${item.title}" successfully!`, "success");
-        onUpdated();
-        onClose();
-      } else {
-        showToast("Failed to update media item", "error");
-      }
+      showToast(`Updated "${item.title}" successfully!`, "success");
+      onUpdated();
+      onClose();
     } catch (err) {
-      console.error(err);
-      showToast("Network error while updating media", "error");
+      console.error("Update media error:", err);
+      showToast(getErrorMessage(err, "Failed to update media item"), "error");
     } finally {
       setLoading(false);
     }
@@ -115,21 +111,17 @@ export default function EditMediaModal({
   const executeDelete = async () => {
     setDeleting(true);
     try {
-      const res = await fetch(`/api/media/${item.id}`, {
+      await apiFetch(`/api/media/${item.id}`, {
         method: "DELETE",
       });
-      if (res.ok) {
-        showToast(`Removed "${item.title}" from your library`, "info");
-        if (onDeleted) onDeleted();
-        else onUpdated();
-        setIsConfirmOpen(false);
-        onClose();
-      } else {
-        showToast("Failed to remove media item", "error");
-      }
+      showToast(`Removed "${item.title}" from your library`, "info");
+      if (onDeleted) onDeleted();
+      else onUpdated();
+      setIsConfirmOpen(false);
+      onClose();
     } catch (err) {
-      console.error(err);
-      showToast("Network error while deleting media", "error");
+      console.error("Delete media error:", err);
+      showToast(getErrorMessage(err, "Failed to remove media item"), "error");
     } finally {
       setDeleting(false);
     }

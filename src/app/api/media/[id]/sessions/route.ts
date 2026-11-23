@@ -68,8 +68,7 @@ export async function GET(
 
     return NextResponse.json({ sessions, total });
   } catch (error) {
-    return internalErrorResponse(
-      error instanceof Error ? error.message : "Failed to fetch sessions"
-    );
+    console.error("GET /api/media/[id]/sessions error:", error);
+    return internalErrorResponse("Failed to fetch sessions");
   }
 }

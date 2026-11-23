@@ -24,6 +24,7 @@ import {
 import { launchExternalUrl } from "@/lib/launch-url";
 import { useToast } from "@/components/Toast";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { apiFetch, getErrorMessage } from "@/lib/api-client";
 
 interface Props {
   mediaId: string;
@@ -114,52 +115,38 @@ export default function ExternalSourceManager({
     try {
       if (editingSource) {
         // PATCH
-        const res = await fetch(`/api/sources/${editingSource.id}`, {
+        const data = await apiFetch<{ source: MediaSourceItem }>(`/api/sources/${editingSource.id}`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+          body: {
             name: trimmedName,
             url: trimmedUrl,
             sourceType,
-          }),
+          },
         });
 
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.error || "Failed to update source");
-        }
-
-        const data = await res.json();
         setSources((prev) =>
           prev.map((s) => (s.id === editingSource.id ? data.source : s))
         );
         showToast("Source updated successfully", "success");
       } else {
         // POST
-        const res = await fetch(`/api/media/${mediaId}/sources`, {
+        const data = await apiFetch<{ source: MediaSourceItem }>(`/api/media/${mediaId}/sources`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+          body: {
             name: trimmedName,
             url: trimmedUrl,
             sourceType,
-          }),
+          },
         });
 
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.error || "Failed to add source");
-        }
-
-        const data = await res.json();
         setSources((prev) => [...prev, data.source]);
         showToast("Source added successfully", "success");
       }
 
       setIsModalOpen(false);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "An unexpected error occurred";
-      setFormError(msg);
+      console.error("Source save error:", err);
+      setFormError(getErrorMessage(err, "An unexpected error occurred"));
     } finally {
       setSubmitting(false);
     }
@@ -169,18 +156,14 @@ export default function ExternalSourceManager({
   const confirmDelete = async () => {
     if (!sourceToDelete) return;
     try {
-      const res = await fetch(`/api/sources/${sourceToDelete.id}`, {
+      await apiFetch(`/api/sources/${sourceToDelete.id}`, {
         method: "DELETE",
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to delete source");
-      }
       setSources((prev) => prev.filter((s) => s.id !== sourceToDelete.id));
       showToast("Source removed", "success");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to delete source";
-      showToast(msg, "error");
+      console.error("Delete source error:", err);
+      showToast(getErrorMessage(err, "Failed to delete source"), "error");
     } finally {
       setSourceToDelete(null);
     }

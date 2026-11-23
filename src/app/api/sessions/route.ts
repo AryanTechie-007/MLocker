@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ZodError } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getUserId } from "@/lib/get-user";
 import {
@@ -19,7 +20,18 @@ export async function POST(req: Request) {
       return unauthorizedResponse();
     }
 
-    const rawBody = await req.json();
+    const rawBody = await req.json().catch(() => null);
+    if (!rawBody || typeof rawBody !== "object") {
+      return validationErrorResponse(
+        new ZodError([
+          {
+            code: "custom",
+            message: "Invalid or missing JSON request body",
+            path: [],
+          },
+        ])
+      );
+    }
 
     // Discriminate between manual session and active session
     const isManual =
@@ -121,8 +133,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ session }, { status: 201 });
   } catch (error) {
-    return internalErrorResponse(
-      error instanceof Error ? error.message : "Failed to create session"
-    );
+    console.error("POST /api/sessions error:", error);
+    return internalErrorResponse("Failed to create session");
   }
 }

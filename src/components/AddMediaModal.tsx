@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useToast } from "@/components/Toast";
 import WatchProviderBadge from "@/components/WatchProviderBadge";
 import { MediaSearchResult } from "@/lib/types";
+import { apiFetch, getErrorMessage } from "@/lib/api-client";
 
 interface AddMediaModalProps {
   isOpen: boolean;
@@ -102,23 +103,17 @@ export default function AddMediaModal({
         hoursPlayed: hoursPlayed ? parseFloat(hoursPlayed) : 0,
       };
 
-      const res = await fetch("/api/media", {
+      await apiFetch("/api/media", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: payload,
       });
 
-      if (res.ok) {
-        showToast(`Added "${title.trim()}" to your locker!`, "success");
-        if (onSuccess) onSuccess();
-        onClose();
-      } else {
-        const data = await res.json().catch(() => null);
-        showToast(data?.error || "Failed to add media item", "error");
-      }
+      showToast(`Added "${title.trim()}" to your locker!`, "success");
+      if (onSuccess) onSuccess();
+      onClose();
     } catch (err) {
-      console.error(err);
-      showToast("Network error while adding media", "error");
+      console.error("Add media error:", err);
+      showToast(getErrorMessage(err, "Failed to add media item"), "error");
     } finally {
       setLoading(false);
     }

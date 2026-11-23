@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { MediaSourceItem, ActivitySessionItem } from "@/lib/api/types";
 import { useToast } from "@/components/Toast";
+import { apiFetch, ApiError, getErrorMessage } from "@/lib/api-client";
 
 interface Props {
   userMediaId: string;
@@ -103,23 +104,21 @@ export default function ActiveSessionTracker({
   const recoverNewSession = useCallback(
     async (oldSessionId: string) => {
       try {
-        const res = await fetch("/api/sessions", {
+        const data = await apiFetch<{ session: ActivitySessionItem }>("/api/sessions", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+          body: {
             userMediaId,
             sourceType: "web",
             supersededSessionId: oldSessionId,
-          }),
+          },
         });
-        if (res.ok) {
-          const data = await res.json();
-          setSession(data.session);
-          sequenceCounterRef.current = 0;
-          setElapsedSeconds(0);
-          setTrackingState("active");
-        }
-      } catch {}
+        setSession(data.session);
+        sequenceCounterRef.current = 0;
+        setElapsedSeconds(0);
+        setTrackingState("active");
+      } catch (err) {
+        console.error("Recover session error:", err);
+      }
     },
     [userMediaId]
   );
@@ -140,10 +139,9 @@ export default function ActiveSessionTracker({
     const pulse = queueRef.current[0];
 
     try {
-      const res = await fetch("/api/sessions/heartbeat", {
+      const data = await apiFetch<{ activeSeconds?: number }>("/api/sessions/heartbeat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: {
           sessionId: currentSession.id,
           userMediaId,
           sequenceNumber: pulse.sequenceNumber,
@@ -152,50 +150,60 @@ export default function ActiveSessionTracker({
           durationSeconds: pulse.durationSeconds,
           isFocused: pulse.isFocused,
           eventType: pulse.eventType ?? "HEARTBEAT",
-        }),
+        },
       });
 
-      if (res.ok) {
-        // Successfully acknowledged: remove head from FIFO queue
-        queueRef.current.shift();
-        const data = await res.json();
-        if (data.activeSeconds !== undefined) {
-          setElapsedSeconds(data.activeSeconds);
-        }
-      } else if (res.status === 409) {
-        const errorData = await res.json();
-
-        if (errorData.code === "SEQUENCE_GAP") {
-          const expectedSeq = errorData.details?.expectedSequence;
-          const foundIndex = queueRef.current.findIndex(
-            (p) => p.sequenceNumber === expectedSeq
-          );
-
-          if (foundIndex > 0) {
-            // Re-order queue: place missing sequence at head
-            const missingPulse = queueRef.current.splice(foundIndex, 1)[0];
-            queueRef.current.unshift(missingPulse);
-          } else {
-            // Unrecoverable gap: call superseded session start
-            showToast(
-              "Sequence gap unrecoverable; rolling into fresh session",
-              "error"
-            );
-            await recoverNewSession(currentSession.id);
-            queueRef.current = [];
-          }
-        } else if (errorData.code === "SESSION_SEALED") {
-          showToast("Session was sealed due to timeout or shutdown", "info");
+      // Successfully acknowledged: remove head from FIFO queue
+      queueRef.current.shift();
+      if (data.activeSeconds !== undefined) {
+        setElapsedSeconds(data.activeSeconds);
+      }
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        if (err.status === 401) {
+          showToast("Session expired. Please log in again.", "error");
           setTrackingState("idle");
           setSession(null);
           queueRef.current = [];
+        } else if (err.status === 409) {
+          const errorDetails = err.details as { expectedSequence?: number } | undefined;
+          if (err.code === "SEQUENCE_GAP") {
+            const expectedSeq = errorDetails?.expectedSequence;
+            const foundIndex = queueRef.current.findIndex(
+              (p) => p.sequenceNumber === expectedSeq
+            );
+
+            if (foundIndex > 0) {
+              // Re-order queue: place missing sequence at head
+              const missingPulse = queueRef.current.splice(foundIndex, 1)[0];
+              queueRef.current.unshift(missingPulse);
+            } else {
+              // Unrecoverable gap: call superseded session start
+              showToast(
+                "Sequence gap unrecoverable; rolling into fresh session",
+                "error"
+              );
+              await recoverNewSession(currentSession.id);
+              queueRef.current = [];
+            }
+          } else if (err.code === "SESSION_SEALED") {
+            showToast("Session was sealed due to timeout or shutdown", "info");
+            setTrackingState("idle");
+            setSession(null);
+            queueRef.current = [];
+          } else {
+            // Other conflict: drop invalid head
+            queueRef.current.shift();
+          }
         } else {
-          // Other conflict: drop invalid head
+          // Other HTTP errors (e.g. 400 or 500): log and drop invalid pulse to avoid head-of-line blocking
+          console.error("Heartbeat server error:", err);
           queueRef.current.shift();
         }
+      } else {
+        // True network drop: pulse remains in queue to retry on next tick
+        console.warn("Heartbeat network delivery failure, will retry:", err);
       }
-    } catch {
-      // Network drop: pulse remains in queue to retry on next tick
     } finally {
       isTransmittingRef.current = false;
       if (queueRef.current.length > 0) {
@@ -263,31 +271,24 @@ export default function ActiveSessionTracker({
   const handleStart = async () => {
     setIsSubmitting(true);
     try {
-      const res = await fetch("/api/sessions", {
+      const data = await apiFetch<{ session: ActivitySessionItem }>("/api/sessions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: {
           userMediaId,
           sourceId: selectedSourceId || null,
           sourceType: "web",
-        }),
+        },
       });
 
-      if (!res.ok) {
-        const err = await res.json();
-        showToast(err.error || "Failed to start tracking session", "error");
-        return;
-      }
-
-      const data = await res.json();
       setSession(data.session);
       sequenceCounterRef.current = 0;
       queueRef.current = [];
       setElapsedSeconds(0);
       setTrackingState("active");
       showToast("Tracking session started", "success");
-    } catch {
-      showToast("Network error starting session", "error");
+    } catch (err) {
+      console.error("Start session error:", err);
+      showToast(getErrorMessage(err, "Failed to start tracking session"), "error");
     } finally {
       setIsSubmitting(false);
     }

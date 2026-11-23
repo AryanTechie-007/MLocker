@@ -13,6 +13,7 @@ import {
 import { ActivitySessionItem } from "@/lib/api/types";
 import { useToast } from "@/components/Toast";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { apiFetch, getErrorMessage } from "@/lib/api-client";
 
 interface Props {
   userMediaId: string;
@@ -38,14 +39,14 @@ export default function SessionHistory({
 
   const fetchSessions = useCallback(async () => {
     try {
-      const res = await fetch(`/api/media/${userMediaId}/sessions?limit=50`);
-      if (res.ok) {
-        const data = await res.json();
-        setSessions(data.sessions || []);
-        setTotalCount(data.total || 0);
-      }
-    } catch {
-      showToast("Failed to load session history", "error");
+      const data = await apiFetch<{ sessions: ActivitySessionItem[]; total: number }>(
+        `/api/media/${userMediaId}/sessions?limit=50`
+      );
+      setSessions(data.sessions || []);
+      setTotalCount(data.total || 0);
+    } catch (err) {
+      console.error("Fetch sessions error:", err);
+      showToast(getErrorMessage(err, "Failed to load session history"), "error");
     } finally {
       setLoading(false);
     }
@@ -53,11 +54,9 @@ export default function SessionHistory({
 
   useEffect(() => {
     let ignore = false;
-    fetch(`/api/media/${userMediaId}/sessions?limit=50`)
-      .then((res) => {
-        if (res.ok) return res.json();
-        throw new Error("Failed to load");
-      })
+    apiFetch<{ sessions: ActivitySessionItem[]; total: number }>(
+      `/api/media/${userMediaId}/sessions?limit=50`
+    )
       .then((data) => {
         if (!ignore) {
           setSessions(data.sessions || []);
@@ -65,9 +64,10 @@ export default function SessionHistory({
           setLoading(false);
         }
       })
-      .catch(() => {
+      .catch((err) => {
         if (!ignore) {
-          showToast("Failed to load session history", "error");
+          console.error("Initial session fetch error:", err);
+          showToast(getErrorMessage(err, "Failed to load session history"), "error");
           setLoading(false);
         }
       });
@@ -254,22 +254,17 @@ export default function SessionHistory({
   const handleSaveEdit = async (sessionId: string) => {
     setSavingEdit(true);
     try {
-      const res = await fetch(`/api/sessions/${sessionId}`, {
+      await apiFetch(`/api/sessions/${sessionId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notes: editingNotes.trim() || null }),
+        body: { notes: editingNotes.trim() || null },
       });
-
-      if (!res.ok) {
-        showToast("Failed to update session notes", "error");
-        return;
-      }
 
       showToast("Session notes updated", "success");
       setEditingSessionId(null);
       fetchSessions();
-    } catch {
-      showToast("Network error updating session", "error");
+    } catch (err) {
+      console.error("Save edit session error:", err);
+      showToast(getErrorMessage(err, "Failed to update session notes"), "error");
     } finally {
       setSavingEdit(false);
     }
@@ -280,20 +275,16 @@ export default function SessionHistory({
     if (!sessionToDelete) return;
 
     try {
-      const res = await fetch(`/api/sessions/${sessionToDelete.id}`, {
+      await apiFetch(`/api/sessions/${sessionToDelete.id}`, {
         method: "DELETE",
       });
-
-      if (!res.ok) {
-        showToast("Failed to delete session", "error");
-        return;
-      }
 
       showToast("Session deleted", "success");
       setSessionToDelete(null);
       fetchSessions();
-    } catch {
-      showToast("Network error deleting session", "error");
+    } catch (err) {
+      console.error("Delete session error:", err);
+      showToast(getErrorMessage(err, "Failed to delete session"), "error");
     }
   };
 

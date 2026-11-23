@@ -18,7 +18,7 @@ export async function searchMovies(query: string): Promise<MediaSearchResult[]> 
   try {
     const res = await fetch(
       `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&country=us&limit=25`,
-      { next: { revalidate: 3600 } }
+      { next: { revalidate: 3600 }, signal: AbortSignal.timeout(8000) }
     );
     if (!res.ok) return [];
     const data = await res.json();

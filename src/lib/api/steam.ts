@@ -25,7 +25,7 @@ export async function searchGames(query: string): Promise<MediaSearchResult[]> {
       `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(
         query.trim()
       )}&l=english&cc=US`,
-      { next: { revalidate: 3600 } }
+      { next: { revalidate: 3600 }, signal: AbortSignal.timeout(8000) }
     );
 
     if (!res.ok) return [];
@@ -43,7 +43,7 @@ export async function searchGames(query: string): Promise<MediaSearchResult[]> {
         try {
           const detailRes = await fetch(
             `https://store.steampowered.com/api/appdetails?appids=${item.id}`,
-            { next: { revalidate: 86400 } }
+            { next: { revalidate: 86400 }, signal: AbortSignal.timeout(8000) }
           );
           if (detailRes.ok) {
             const detailJson = await detailRes.json();

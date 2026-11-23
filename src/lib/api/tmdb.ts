@@ -205,7 +205,7 @@ export async function fetchWatchProviders(
   try {
     const res = await fetch(
       `https://api.themoviedb.org/3/${type}/${id}/watch/providers?api_key=${key}`,
-      { next: { revalidate: 86400 } }
+      { next: { revalidate: 86400 }, signal: AbortSignal.timeout(8000) }
     );
     if (!res.ok) {
       if (isAnime) {
@@ -340,7 +340,7 @@ export async function searchTMDBMovies(query: string): Promise<MediaSearchResult
       `https://api.themoviedb.org/3/search/movie?api_key=${key}&query=${encodeURIComponent(
         query
       )}&include_adult=false&language=en-US&page=1`,
-      { next: { revalidate: 3600 } }
+      { next: { revalidate: 3600 }, signal: AbortSignal.timeout(8000) }
     );
     if (!res.ok) return [];
     const data = await res.json();
@@ -397,7 +397,7 @@ export async function searchTMDBTV(query: string): Promise<MediaSearchResult[]> 
       `https://api.themoviedb.org/3/search/tv?api_key=${key}&query=${encodeURIComponent(
         query
       )}&include_adult=false&language=en-US&page=1`,
-      { next: { revalidate: 3600 } }
+      { next: { revalidate: 3600 }, signal: AbortSignal.timeout(8000) }
     );
     if (!res.ok) return [];
     const data = await res.json();
@@ -455,13 +455,13 @@ export async function searchTMDBAnime(query: string): Promise<MediaSearchResult[
         `https://api.themoviedb.org/3/search/tv?api_key=${key}&query=${encodeURIComponent(
           query
         )}&include_adult=false&language=en-US&page=1`,
-        { next: { revalidate: 3600 } }
+        { next: { revalidate: 3600 }, signal: AbortSignal.timeout(8000) }
       ),
       fetch(
         `https://api.themoviedb.org/3/search/movie?api_key=${key}&query=${encodeURIComponent(
           query
         )}&include_adult=false&language=en-US&page=1`,
-        { next: { revalidate: 3600 } }
+        { next: { revalidate: 3600 }, signal: AbortSignal.timeout(8000) }
       ),
     ]);
 

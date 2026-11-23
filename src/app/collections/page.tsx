@@ -1,18 +1,18 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import { FolderHeart, Plus, Trash2, X, Loader2 } from "lucide-react";
 import MediaCard from "@/components/MediaCard";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { Skeleton, MediaCardSkeleton } from "@/components/Skeleton";
 import { Collection } from "@/lib/types";
+import { apiFetch, getErrorMessage } from "@/lib/api-client";
+import { useApi } from "@/lib/use-api";
 
 export default function CollectionsPage() {
   const { showToast } = useToast();
-  const [collections, setCollections] = useState<Collection[]>([]);
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
-  const [loading, setLoading] = useState(true);
 
   // New Collection Modal
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -24,15 +24,20 @@ export default function CollectionsPage() {
   const [collectionToDelete, setCollectionToDelete] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const fetchCollections = useCallback(async () => {
-    try {
-      const res = await fetch("/api/collections");
-      if (res.ok) {
-        const data = await res.json();
-        const colls: Collection[] = data.collections || [];
-        setCollections(colls);
+  const {
+    data: collectionsData,
+    loading,
+    refetch: fetchCollections,
+  } = useApi<Collection[]>(
+    async (signal) => {
+      const data = await apiFetch<{ collections: Collection[] }>("/api/collections", { signal });
+      return data.collections || [];
+    },
+    [],
+    {
+      initialData: [],
+      onSuccess: (colls) => {
         if (colls.length > 0) {
-          // Keep current selection if still exists, otherwise pick first
           setSelectedCollection((prev) => {
             if (prev) {
               const matched = colls.find((c) => c.id === prev.id);
@@ -43,67 +48,36 @@ export default function CollectionsPage() {
         } else {
           setSelectedCollection(null);
         }
-      }
-    } catch (err) {
-      console.error(err);
-      showToast("Failed to load collections", "error");
-    } finally {
-      setLoading(false);
+      },
+      onError: (err) => {
+        console.error("Fetch collections error:", err);
+        showToast(getErrorMessage(err, "Failed to load collections"), "error");
+      },
     }
-  }, [showToast]);
+  );
 
-  useEffect(() => {
-    let ignore = false;
-    fetch("/api/collections")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!ignore) {
-          const colls: Collection[] = data.collections || [];
-          setCollections(colls);
-          if (colls.length > 0) {
-            setSelectedCollection(colls[0]);
-          } else {
-            setSelectedCollection(null);
-          }
-          setLoading(false);
-        }
-      })
-      .catch((err) => {
-        if (!ignore) {
-          console.error(err);
-          setLoading(false);
-        }
-      });
-    return () => {
-      ignore = true;
-    };
-  }, []);
+  const collections = collectionsData || [];
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newColName.trim()) return;
     setCreating(true);
     try {
-      const res = await fetch("/api/collections", {
+      await apiFetch("/api/collections", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: {
           name: newColName.trim(),
           description: newColDesc.trim() || null,
-        }),
+        },
       });
-      if (res.ok) {
-        showToast(`Created collection "${newColName.trim()}"!`, "success");
-        setNewColName("");
-        setNewColDesc("");
-        setIsCreateOpen(false);
-        fetchCollections();
-      } else {
-        showToast("Failed to create collection", "error");
-      }
+      showToast(`Created collection "${newColName.trim()}"!`, "success");
+      setNewColName("");
+      setNewColDesc("");
+      setIsCreateOpen(false);
+      fetchCollections();
     } catch (err) {
-      console.error(err);
-      showToast("Network error while creating collection", "error");
+      console.error("Create collection error:", err);
+      showToast(getErrorMessage(err, "Failed to create collection"), "error");
     } finally {
       setCreating(false);
     }
@@ -113,17 +87,13 @@ export default function CollectionsPage() {
     if (!collectionToDelete) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/collections/${collectionToDelete.id}`, { method: "DELETE" });
-      if (res.ok) {
-        showToast(`Deleted collection "${collectionToDelete.name}"`, "info");
-        setCollectionToDelete(null);
-        fetchCollections();
-      } else {
-        showToast("Failed to delete collection", "error");
-      }
+      await apiFetch(`/api/collections/${collectionToDelete.id}`, { method: "DELETE" });
+      showToast(`Deleted collection "${collectionToDelete.name}"`, "info");
+      setCollectionToDelete(null);
+      fetchCollections();
     } catch (err) {
-      console.error(err);
-      showToast("Network error while deleting collection", "error");
+      console.error("Delete collection error:", err);
+      showToast(getErrorMessage(err, "Failed to delete collection"), "error");
     } finally {
       setDeleting(false);
     }

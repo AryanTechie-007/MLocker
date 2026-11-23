@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
   BarChart,
@@ -23,6 +23,8 @@ import {
   Award,
 } from "lucide-react";
 import { Skeleton, StatCardSkeleton } from "@/components/Skeleton";
+import { apiFetch } from "@/lib/api-client";
+import { useApi } from "@/lib/use-api";
 import { StatsResponse, UserMediaItem } from "@/lib/types";
 
 const COLORS = ["#8b5cf6", "#06b6d4", "#ec4899", "#10b981", "#f59e0b", "#3b82f6"];
@@ -31,29 +33,18 @@ const emptySubscribe = () => () => {};
 
 export default function StatsPage() {
   const isClient = useSyncExternalStore(emptySubscribe, () => true, () => false);
-  const [stats, setStats] = useState<StatsResponse | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let ignore = false;
-    fetch("/api/stats")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!ignore) {
-          setStats(data.stats);
-          setLoading(false);
-        }
-      })
-      .catch((err) => {
-        if (!ignore) {
-          console.error(err);
-          setLoading(false);
-        }
-      });
-    return () => {
-      ignore = true;
-    };
-  }, []);
+  const { data: statsData, loading } = useApi<{ stats: StatsResponse }>(
+    async (signal) => apiFetch<{ stats: StatsResponse }>("/api/stats", { signal }),
+    [],
+    {
+      onError: (err) => {
+        console.error("Stats fetch error:", err);
+      },
+    }
+  );
+
+  const stats = statsData?.stats ?? null;
 
   if (loading || !isClient || !stats) {
     return (
